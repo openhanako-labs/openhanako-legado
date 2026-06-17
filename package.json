@@ -1,0 +1,13 @@
+{
+  "name": "legado-companion",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "description": "开源阅读 · your reading companion brain. Hana plugin scaffold.",
+  "scripts": {
+    "postinstall": "echo ✓ legado-companion postinstall ok"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

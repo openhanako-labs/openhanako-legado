@@ -1,0 +1,44 @@
+{
+  "manifestVersion": 1,
+  "id": "legado-companion",
+  "name": "阅读·伴脑",
+  "version": "0.0.1",
+  "description": "让 Hanako 联结你的开源阅读（Legado），伴你阅读。",
+  "minAppVersion": "0.301.17",
+  "trust": "full-access",
+  "capabilities": [
+    "session",
+    "model.sample"
+  ],
+  "permissions": [],
+  "ui": {
+    "hostCapabilities": [
+      "external.open",
+      "clipboard.writeText"
+    ]
+  },
+  "contributes": {
+    "page": {
+      "title": "阅读",
+      "route": "/page",
+      "icon": "<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.5\"><path d=\"M4 5h6a3 3 0 0 1 3 3v11a2 2 0 0 0-2-2H4zM20 5h-6a3 3 0 0 0-3 3v11a2 2 0 0 1 2-2h7z\"/></svg>"
+    },
+    "widget": {
+      "title": "阅读·伴脑",
+      "route": "/widget",
+      "icon": "<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.5\"><path d=\"M4 19V6a2 2 0 0 1 2-2h12v17H6a2 2 0 0 1-2-2zM8 8h8M8 12h6\"/></svg>"
+    }
+  },
+  "dev": {
+    "scenarios": [
+      {
+        "id": "ping-no-service",
+        "destructive": false,
+        "steps": [
+          { "invokeTool": { "name": "legado_ping", "input": {} } },
+          { "expectToolText": "no_service" }
+        ]
+      }
+    ]
+  }
+}
