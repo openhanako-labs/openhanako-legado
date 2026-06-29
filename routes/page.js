@@ -6,9 +6,15 @@ import fs from "node:fs";
 import path from "node:path";
 import os from "node:os";
 import { readCredentials, writeCredentials, clearCredentials } from "../tools/_lib/credentials.js";
-import { ping as legadoPing, getBookshelf, getBookInfo, getBookChapters, getChapterContent, getBookNotes, searchBooks, getBookProgress, callLegadoApi } from "../tools/_lib/legado-api.js";
+import { ping as legadoPing, getBookshelf, getBookInfo, getBookChapters, getChapterContent, getBookNotes, getAllBookNotes, searchBooks, getBookProgress, callLegadoApi } from "../tools/_lib/legado-api.js";
 import legadoGetPortrait from "../tools/legado_get_reading_portrait.js";
 import legadoAskNotes from "../tools/legado_ask_notes.js";
+import legadoRecommendBooks from "../tools/legado_recommend_books.js";
+import legadoSaveCard from "../tools/legado_save_card.js";
+import legadoDailyLog from "../tools/legado_daily_log.js";
+import legadoSaveBooklist from "../tools/legado_save_booklist.js";
+import legadoPreferenceEvolution from "../tools/legado_preference_evolution.js";
+import legadoRssIntake from "../tools/legado_rss_intake.js";
 
 // ---- 读服务器 token ----
 
@@ -162,16 +168,12 @@ export default function registerLegadoRoutes(app, ctx) {
         const notes = await getBookNotes(creds.serviceUrl, bookId);
         return c.json({ ok: true, notes, totalCount: notes.length });
       }
-      // 无 bookId 时返回所有书的进度信息作为笔记
+      // 无 bookId 时，遍历书架收集所有笔记
       const books = await getBookshelf(creds.serviceUrl, "0", 100);
-      const notes = books.filter(b => b.durChapterTitle).map(b => ({
-        bookId: b.bookUrl,
-        bookTitle: b.name,
-        content: `读到: ${b.durChapterTitle}`,
-        text: b.durChapterTitle,
-        timestamp: b.durChapterTime || 0,
-      }));
-      return c.json({ ok: true, notes, totalCount: notes.length });
+      const allNotes = await getAllBookNotes(creds.serviceUrl, books, 3);
+      // 按时间倒序
+      allNotes.sort((a, b) => (b.createTime || 0) - (a.createTime || 0));
+      return c.json({ ok: true, notes: allNotes.slice(0, 50), totalCount: allNotes.length });
     } catch (err) {
       return c.json({ ok: false, code: err.code, message: err.message });
     }
@@ -194,18 +196,27 @@ export default function registerLegadoRoutes(app, ctx) {
     try {
       const books = await getBookshelf(creds.serviceUrl, "0", 100);
       const lower = q.toLowerCase();
-      const results = books.filter(b => {
-        return (b.name || "").toLowerCase().includes(lower)
-          || (b.author || "").toLowerCase().includes(lower)
-          || (b.intro || "").toLowerCase().includes(lower)
-          || (b.durChapterTitle || "").toLowerCase().includes(lower);
-      }).slice(0, limit).map(b => ({
-        bookId: b.bookUrl,
-        bookTitle: b.name,
-        content: b.intro ? b.intro.slice(0, 200) : "",
-        text: b.durChapterTitle || "",
-        timestamp: b.durChapterTime || 0,
-      }));
+
+      // 先收集所有笔记
+      const allNotes = await getAllBookNotes(creds.serviceUrl, books, 3);
+
+      // 在笔记内容中搜索
+      const results = allNotes
+        .filter(n => {
+          const content = (n.content || "").toLowerCase();
+          const chapter = (n.chapterName || "").toLowerCase();
+          const bookName = (n.bookName || "").toLowerCase();
+          return content.includes(lower) || chapter.includes(lower) || bookName.includes(lower);
+        })
+        .slice(0, limit)
+        .map(n => ({
+          noteId: `${n.bookId}_${n.chapterPos}_${n.createTime}`,
+          bookTitle: n.bookName || "",
+          chapterName: n.chapterName || "",
+          content: (n.content || "").slice(0, 500),
+          type: n.type,
+          createTime: n.createTime || 0,
+        }));
       return c.json({ ok: true, results, total: results.length });
     } catch (err) {
       return c.json({ ok: false, code: err.code, message: err.message });
@@ -379,6 +390,28 @@ export default function registerLegadoRoutes(app, ctx) {
     }
   });
 
+  // ---- 书单推荐 ----
+
+  app.get("/api/recommend", async (c) => {
+    const count = Number(c.req.query("count") || 5);
+    const mode = c.req.query("mode") || "balanced";
+    const type = c.req.query("type") || null;
+    const out = await invokeTool(legadoRecommendBooks, { count, mode, type });
+    return c.json(out);
+  });
+
+  app.post("/api/recommend", async (c) => {
+    let body;
+    try { body = await c.req.json(); } catch { body = {}; }
+    const out = await invokeTool(legadoRecommendBooks, {
+      count: body.count || 5,
+      mode: body.mode || "balanced",
+      type: body.type || null,
+      excludeUrls: body.excludeUrls || [],
+    });
+    return c.json(out);
+  });
+
   // ---- LLM 对话（对齐 weread llm/chat）----
 
   app.post("/api/llm/chat", async (c) => {
@@ -449,20 +482,108 @@ export default function registerLegadoRoutes(app, ctx) {
     const url = c.req.query("url") || "";
     if (!/^https?:\/\//i.test(url)) return c.json({ ok: false, code: "bad_url" }, 400);
     try {
-      const resp = await fetch(url);
-      if (!resp.ok) return c.json({ ok: false, code: "upstream" }, 502);
+      // 从图片 URL 提取域名作为 Referer（部分图源需要）
+      let referer = "";
+      try { referer = new URL(url).origin + "/"; } catch {}
+      const resp = await fetch(url, {
+        headers: {
+          "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+          "Referer": referer,
+          "Accept": "image/webp,image/avif,image/*,*/*;q=0.8",
+        },
+      });
+      if (!resp.ok) {
+        // 上游失败时返回透明占位图（1x1 pixel GIF）
+        const fallback = Buffer.from("R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7", "base64");
+        return new Response(fallback, { headers: { "Content-Type": "image/gif", "Cache-Control": "public, max-age=300" } });
+      }
       const buf = Buffer.from(await resp.arrayBuffer());
       const ct = resp.headers.get("content-type") || "image/jpeg";
       return new Response(buf, { headers: { "Content-Type": ct, "Cache-Control": "public, max-age=86400" } });
     } catch (err) {
-      return c.json({ ok: false, code: "proxy_failed", message: err.message }, 500);
+      // 网络错误时也返回占位图
+      const fallback = Buffer.from("R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7", "base64");
+      return new Response(fallback, { headers: { "Content-Type": "image/gif", "Cache-Control": "public, max-age=300" } });
     }
+  });
+
+  // ---- 每日阅读打卡 ----
+
+  app.get("/api/daily-log", async (c) => {
+    const date = c.req.query("date") || null;
+    const mode = c.req.query("mode") || "append";
+    const out = await invokeTool(legadoDailyLog, { date, mode });
+    return c.json(out);
+  });
+
+  app.post("/api/daily-log", async (c) => {
+    let body;
+    try { body = await c.req.json(); } catch { body = {}; }
+    const out = await invokeTool(legadoDailyLog, {
+      date: body.date || null,
+      mode: body.mode || "append",
+      category: body.category || "日常",
+    });
+    return c.json(out);
+  });
+
+  // ---- 书单管理 ----
+
+  app.get("/api/booklist", async (c) => {
+    const action = c.req.query("action") || "list";
+    const name = c.req.query("name") || null;
+    const out = await invokeTool(legadoSaveBooklist, { action, name });
+    return c.json(out);
+  });
+
+  app.post("/api/booklist", async (c) => {
+    let body;
+    try { body = await c.req.json(); } catch { body = {}; }
+    const out = await invokeTool(legadoSaveBooklist, body);
+    return c.json(out);
+  });
+
+  // ---- 偏好演化 ----
+
+  app.get("/api/preference-evolution", async (c) => {
+    const action = c.req.query("action") || "history";
+    const out = await invokeTool(legadoPreferenceEvolution, { action }, ctx);
+    return c.json(out);
+  });
+
+  app.post("/api/preference-evolution", async (c) => {
+    let body;
+    try { body = await c.req.json(); } catch { body = {}; }
+    const out = await invokeTool(legadoPreferenceEvolution, { action: body.action || "analyze", ...body }, ctx);
+    return c.json(out);
+  });
+
+  // ---- RSS 书讯摄入 ----
+
+  app.get("/api/rss-intake", async (c) => {
+    const action = c.req.query("action") || "list";
+    const out = await invokeTool(legadoRssIntake, { action });
+    return c.json(out);
+  });
+
+  app.post("/api/rss-intake", async (c) => {
+    let body;
+    try { body = await c.req.json(); } catch { body = {}; }
+    const out = await invokeTool(legadoRssIntake, body);
+    return c.json(out);
   });
 
   // ---- 保存卡片（对齐 weread save-card）----
 
   app.post("/api/save-card", async (c) => {
-    return c.json({ ok: false, code: "not_implemented" }, 501);
+    try {
+      const body = await c.req.json().catch(() => ({}));
+      const out = await invokeTool(legadoSaveCard, body);
+      return c.json(out);
+    } catch (err) {
+      ctx.log?.error?.("save-card failed", { error: err.message });
+      return c.json({ ok: false, code: "tool_error", message: err.message }, 500);
+    }
   });
 }
 

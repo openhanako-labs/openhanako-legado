@@ -29,6 +29,10 @@ var S = {
   randomPick:null, searchQ:'', searchResults:[], searching:false,
   fontSize:16, askResults:'', askLoading:false, askQ:'',
   portrait:null, portraitLoading:false, timeline:null, timelineLoading:false,
+  shelfLoading:false, shelfError:null,
+  detailLoading:false, chapterError:null, notesError:null,
+  statsLoading:false, statsError:null,
+  searchError:null,
 };
 
 document.addEventListener('DOMContentLoaded', function() {
@@ -88,6 +92,8 @@ function shelfHtml() {
   var backBtn=S.filterGroup!=null?'<button class="bo" style="margin-right:8px" data-act="switch" data-tab="shelf">← 全部</button>':'';
   var title=S.filterGroup!=null?'📁 '+gn(S.filterGroup):'📚 书架';
   if(!S.connected) return '<div class="cd"><div class="ch">'+backBtn+title+'</div><div class="cb"><div class="em">请先设置地址</div></div></div>';
+  if(S.shelfLoading) return '<div class="cd"><div class="ch">'+backBtn+title+'</div><div class="cb"><div class="em"><span class="sp"></span> 加载书架中...</div></div></div>';
+  if(S.shelfError) return '<div class="cd"><div class="ch">'+backBtn+title+'</div><div class="cb"><div style="margin:12px 18px;padding:10px 14px;background:#fef2f2;border:1px solid #fecaca;border-radius:8px;color:#b91c1c;font-size:13px;line-height:1.6">书架加载失败：'+esc(S.shelfError)+'<div style="margin-top:6px"><button class="bp" style="font-size:12px" data-act="ping">重新连接</button></div></div></div></div>';
   if(!fl.length){var m=S.filterGroup!=null?'该分组无书籍':'无书籍';return '<div class="cd"><div class="ch">'+backBtn+title+'</div><div class="cb"><div class="em">'+m+'</div></div></div>';}
   var html='<div class="cd"><div class="ch">'+backBtn+title+' <span class="sub">'+fl.length+' 本</span></div><div class="cb"><div class="shelf-grid">';
   for(var i=0;i<Math.min(fl.length,60);i++) {
@@ -118,10 +124,14 @@ function detailHtml() {
   if(d.author) html+='<div style="font-size:13px;color:var(--slate);margin-top:2px">'+esc(d.author)+'</div>';
   if(d.intro) html+='<div style="font-size:13px;line-height:1.7;margin-top:8px;color:var(--ink);font-family:var(--font-book);border-left:3px solid var(--ochre);padding-left:12px">'+esc(d.intro)+'</div>';
   html+='</div></div></div></div>';
-  if(total) html+=pages+'<div class="cd"><div class="ch">📑 章节 ('+total+')</div><div class="ch-grid">'+
+  if(S.chapterError) {
+    html+='<div class="cd"><div class="ch">📑 章节</div><div class="cb"><div style="padding:10px 14px;background:#fef2f2;border-radius:8px;color:#b91c1c;font-size:13px;line-height:1.6">章节加载失败：'+esc(S.chapterError)+'<div style="margin-top:6px"><button class="bo" data-act="detail" data-bid="'+esc(d.bookUrl||'')+'" style="font-size:12px">重试</button></div></div></div></div>';
+  } else if(total) html+=pages+'<div class="cd"><div class="ch">📑 章节 ('+total+')</div><div class="ch-grid">'+
     S.chapters.slice(start,end).map(function(c,i){var t=typeof c==='string'?c:(c.title||c.name||'第'+(start+i+1)+'章');return '<div class="ch-item" data-act="readch" data-ch="'+(start+i)+'">'+esc(t)+'</div>';}).join('')+
     '</div></div>';
-  if(S.notes.length) {
+  if(S.notesError) {
+    html+='<div class="cd"><div class="ch">📝 笔记</div><div class="cb"><div style="padding:10px 14px;background:#fef2f2;border-radius:8px;color:#b91c1c;font-size:13px;line-height:1.6">笔记加载失败：'+esc(S.notesError)+'<div style="margin-top:6px"><button class="bo" data-act="detail" data-bid="'+esc(d.bookUrl||'')+'" style="font-size:12px">重试</button></div></div></div></div>';
+  } else if(S.notes.length) {
     html+='<div class="cd"><div class="ch">📝 笔记 ('+S.notes.length+')</div>';
     for(var n=0;n<Math.min(S.notes.length,5);n++) {
       var nt=S.notes[n];
@@ -172,12 +182,15 @@ function pickHtml() {
 function searchHtml() {
   var html='<div class="cd"><div class="ch">🔍 搜书源</div><div class="cb"><div class="fl"><div class="ir"><input id="sq" placeholder="书名、作者..." value="'+esc(S.searchQ||'')+'" /><button class="bp" data-act="searchbk">搜</button></div></div>';
   if(S.searching) html+='<div class="em"><span class="sp"></span> 搜索中...</div>';
+  else if(S.searchError) {
+    html+='<div style="margin:12px 18px;padding:10px 14px;background:#fef2f2;border:1px solid #fecaca;border-radius:8px;color:#b91c1c;font-size:13px;line-height:1.6">搜索失败：'+esc(S.searchError)+'<div style="margin-top:6px"><button class="bo" data-act="searchbk" style="font-size:12px">重试</button></div></div>';
+  }
   else if(S.searchResults.length) {
     html+='<div style="padding:4px 18px;font-size:12px;color:var(--slate)">'+S.searchResults.length+' 个结果</div><div class="shelf-grid">';
     for(var i=0;i<Math.min(S.searchResults.length,30);i++) {
       var b=S.searchResults[i];
       var cimg=coverImg(b.coverUrl||b.cover||'');
-      html+='<div class="shelf-card">';
+      html+='<div class="shelf-card" data-act="detail" data-bid="'+esc(b.bookUrl||b.bookId||'')+'">';
       if(cimg) html+='<div class="shelf-cover" style="background-image:url('+cimg+');background-size:cover">📖</div>';
       else html+='<div class="shelf-cover">📖</div>';
       html+='<div class="shelf-meta"><div class="shelf-title">'+esc(b.title||b.name||'?')+'</div>'+(b.author?'<div class="shelf-author">'+esc(b.author)+'</div>':'')+'</div></div>';
@@ -191,6 +204,7 @@ function searchHtml() {
 // ---- 统计 ----
 function statsHtml() {
   var s=S.stats;
+  if(S.statsError) return '<div class="cd"><div class="ch">📊 阅读统计</div><div class="cb"><div style="margin:12px 18px;padding:10px 14px;background:#fef2f2;border:1px solid #fecaca;border-radius:8px;color:#b91c1c;font-size:13px;line-height:1.6">统计加载失败：'+esc(S.statsError)+'<div style="margin-top:6px"><button class="bp" style="font-size:12px" data-act="stats">重试</button></div></div></div></div>';
   if(!S.statsLoaded) return '<div class="cd"><div class="ch">📊 阅读统计</div><div class="cb"><div class="em"><span class="sp"></span> 加载中...</div></div></div>';
   if(!s) return '<div class="cd"><div class="ch">📊 阅读统计</div><div class="cb"><div class="em">暂无数据</div></div></div>';
   var html='<div class="cd"><div class="ch">📊 阅读统计</div><div class="cb"><div class="sg">'+
@@ -292,6 +306,22 @@ function configHtml() {
     '<div class="ac"><button class="bp" data-act="save">保存地址</button><button class="bo" data-act="clear">清除</button></div></div></div>';
 }
 
+// ---- Toast 通知 ----
+function toast(msg, type) {
+  var container = document.getElementById('toast-container');
+  if (!container) {
+    container = document.createElement('div');
+    container.id = 'toast-container';
+    container.className = 'toast-container';
+    document.body.appendChild(container);
+  }
+  var el = document.createElement('div');
+  el.className = 'toast' + (type === 'error' ? ' toast-error' : type === 'success' ? ' toast-success' : '');
+  el.textContent = msg;
+  container.appendChild(el);
+  setTimeout(function(){ el.style.animation='tout .3s ease-in forwards';setTimeout(function(){container.removeChild(el)},300); }, 2500);
+}
+
 // ---- 操作函数 ----
 function doPick(){
   if(!S.books.length)return;
@@ -301,8 +331,8 @@ function doPick(){
 async function doSearch(){
   var q=(document.getElementById('sq')||{}).value||'';
   if(!q.trim())return;
-  S.searchQ=q.trim();S.searching=true;S.searchResults=[];render();
-  try{var r=await api('/api/search-bookstore?keyword='+encodeURIComponent(S.searchQ));S.searchResults=r.ok?(r.books||[]):[];}catch(e){S.searchResults=[];}
+  S.searchQ=q.trim();S.searching=true;S.searchResults=[];S.searchError=null;render();
+  try{var r=await api('/api/search-bookstore?keyword='+encodeURIComponent(S.searchQ));S.searchResults=r.ok?(r.books||[]):[];S.searchError=r.ok?null:(r.message||'搜索无结果');}catch(e){S.searchError=e.message;S.searchResults=[];}
   S.searching=false;render();
 }
 async function doAsk(){
@@ -324,7 +354,10 @@ async function doPing(){
   try{
     await api('/api/credentials?method=POST&url='+encodeURIComponent(S.url));
     var r=await api('/api/login-status');
-    if(r.logged){S.connected=true;S.books=[];S.error=null;try{var sr=await api('/api/shelf');if(sr.ok)S.books=sr.books||[]}catch(e){}}else{S.connected=false;S.error=r.message||r.hint||'失败';}
+    if(r.logged){S.connected=true;S.books=[];S.error=null;S.shelfLoading=true;render();
+  try{var sr=await api('/api/shelf');if(sr.ok){S.books=sr.books||[];S.shelfError=null;}else{S.shelfError=sr.message||'获取书架失败';}}catch(e){S.shelfError=e.message;}
+  S.shelfLoading=false;render();
+    }else{S.connected=false;S.error=r.message||r.hint||'失败';}
   }catch(e){S.connected=false;S.error=e.message;}
   render();
 }
@@ -332,19 +365,19 @@ async function doSave(){
   S.url=(document.getElementById('url')||{}).value||'';
   if(!S.url){S.error='输入地址';render();return}
   if(!S.url.startsWith('http'))S.url='http://'+S.url;
-  try{await api('/api/credentials?method=POST&url='+encodeURIComponent(S.url));S.error=null}catch(e){S.error=e.message}
+  try{await api('/api/credentials?method=POST&url='+encodeURIComponent(S.url));S.error=null;toast('服务地址已保存','success')}catch(e){S.error=e.message;toast('保存失败: '+e.message,'error')}
   render();
 }
 async function doClear(){
   try{await api('/api/credentials?method=clear')}catch(e){}
   S.connected=false;S.books=[];S.url='';S.error=null;S.stats={};S.statsLoaded=false;S.groupNames={};
-  render();
+  toast('凭据已清除','success');render();
 }
 async function openDetail(b) {
   S.detail={bookUrl:b.bookUrl||b.bookId||'',title:b.title||b.name||'',author:b.author||'',cover:b.coverUrl||b.cover||'',intro:b.intro||''};
-  S.chapters=[];S.notes=[];S.chPage=0;render();
-  try{var r=await api('/api/book-chapters?bookId='+encodeURIComponent(S.detail.bookUrl));if(r.ok)S.chapters=r.chapters||[]}catch(e){}
-  try{var r=await api('/api/book-notes?bookId='+encodeURIComponent(S.detail.bookUrl));if(r.ok)S.notes=r.notes||[]}catch(e){}
+  S.chapters=[];S.notes=[];S.chPage=0;S.chapterError=null;S.notesError=null;render();
+  try{var r=await api('/api/book-chapters?bookId='+encodeURIComponent(S.detail.bookUrl));if(r.ok)S.chapters=r.chapters||[]}catch(e){S.chapterError=e.message;}
+  try{var r=await api('/api/book-notes?bookId='+encodeURIComponent(S.detail.bookUrl));if(r.ok)S.notes=r.notes||[]}catch(e){S.notesError=e.message;}
   render();
 }
 async function readChapter(idx) {
@@ -355,14 +388,14 @@ async function readChapter(idx) {
 }
 async function loadStats(){
   if(S.statsLoaded)return;
-  try{if(!S.connected)return;var r=await api('/api/reading-stats');if(r.ok&&r.stats){S.stats=r.stats;S.statsLoaded=true;}}catch(e){}
-  // 加载时间线
+  S.statsLoading=true;S.statsError=null;render();
+  try{if(!S.connected)throw new Error('未连接');var r=await api('/api/reading-stats');if(r.ok&&r.stats){S.stats=r.stats;S.statsLoaded=true;S.statsError=null;}else{S.statsError=r.message||'获取统计失败';}}catch(e){S.statsError=e.message;}
+  S.statsLoading=false;render();
   if(S.connected && !S.timeline) {
     S.timelineLoading=true;render();
     try{var tr=await api('/api/timeline');if(tr.ok)S.timeline=tr.events||[]}catch(e){}
     S.timelineLoading=false;
   }
-  render();
 }
 async function loadGroupNames(){
   try{var gnr=await api('/api/group-names');if(gnr.ok)S.groupNames=Object.assign({0:'默认',1:'追更',2:'养肥',16:'待分类'},gnr.names||{})}catch(e){}
@@ -375,7 +408,10 @@ async function loadPortrait(){
 async function checkLogin(){
   try{
     var r=await api('/api/login-status');
-    if(r.logged){S.connected=true;try{var sr=await api('/api/shelf');if(sr.ok)S.books=sr.books||[]}catch(e){}}else{S.error=r.message||r.hint||'';}
+    if(r.logged){S.connected=true;S.shelfLoading=true;render();
+  try{var sr=await api('/api/shelf');if(sr.ok){S.books=sr.books||[];S.shelfError=null;}else{S.shelfError=sr.message||'获取书架失败';}}catch(e){S.shelfError=e.message;}
+  S.shelfLoading=false;render();
+    }else{S.error=r.message||r.hint||'';}
   }catch(e){S.error=e.message;}
   render();
 }

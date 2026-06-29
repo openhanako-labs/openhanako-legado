@@ -85,6 +85,33 @@ const CREDENTIALS_SOURCE_CAPABILITY = {
   stability: "stable",
 };
 
+const RECOMMEND_CAPABILITY = {
+  title: "书单智能推荐",
+  description: "基于阅读历史和偏好，从 Legado 书源搜索并推荐书籍。三层漏斗：关键词提取→书源搜索→排序生成理由。",
+  inputSchema: {
+    type: "object",
+    properties: {
+      count: { type: "number", description: "推荐数量，默认 5" },
+      mode: { type: "string", enum: ["conservative", "balanced", "aggressive"], description: "推荐模式，默认 balanced" },
+      type: { type: "string", description: "按类型筛选（可选）" },
+      excludeUrls: { type: "array", items: { type: "string" }, description: "排除的 bookUrl 列表" },
+    },
+  },
+  outputSchema: {
+    type: "object",
+    properties: {
+      ok: { type: "boolean" },
+      recommendations: { type: "array" },
+      mode: { type: "string" },
+      count: { type: "number" },
+      meta: { type: "object" },
+    },
+  },
+  errors: ["NO_SERVICE", "TOOL_ERROR"],
+  owner: "plugin:legado-companion",
+  stability: "alpha",
+};
+
 // ---------- plugin ----------
 
 class LegadoCompanionPlugin {
@@ -163,6 +190,81 @@ class LegadoCompanionPlugin {
           return { ok: true, source, hasService: Boolean(value) };
         },
         { capability: CREDENTIALS_SOURCE_CAPABILITY },
+      ));
+
+      // 5) 书单推荐
+      register(ctx.bus.handle(
+        "legado-companion:recommend",
+        async (payload) => {
+          try {
+            const { default: recommend } = await import("./tools/legado_recommend_books.js");
+            return await recommend(payload || {}, { ...ctx, log: ctx.log });
+          } catch (err) {
+            ctx.log?.error?.("recommend failed via bus", { error: err.message });
+            return { ok: false, code: "tool_error", message: err.message };
+          }
+        },
+        { capability: RECOMMEND_CAPABILITY },
+      ));
+
+      // 6) 每日阅读打卡
+      register(ctx.bus.handle(
+        "legado-companion:daily-log",
+        async (payload) => {
+          try {
+            const { default: dailyLog } = await import("./tools/legado_daily_log.js");
+            return await dailyLog(payload || {}, { ...ctx, log: ctx.log });
+          } catch (err) {
+            ctx.log?.error?.("daily-log failed via bus", { error: err.message });
+            return { ok: false, code: "tool_error", message: err.message };
+          }
+        },
+        { capability: { title: "每日阅读打卡", description: "自动生成今日阅读记录并写入 Obsidian 日记", stability: "alpha" } },
+      ));
+
+      // 7) 主题书单
+      register(ctx.bus.handle(
+        "legado-companion:booklist",
+        async (payload) => {
+          try {
+            const { default: booklist } = await import("./tools/legado_save_booklist.js");
+            return await booklist(payload || {}, { ...ctx, log: ctx.log });
+          } catch (err) {
+            ctx.log?.error?.("booklist failed via bus", { error: err.message });
+            return { ok: false, code: "tool_error", message: err.message };
+          }
+        },
+        { capability: { title: "主题书单管理", description: "创建/列举/查看主题书单，支持分享到 Obsidian", stability: "alpha" } },
+      ));
+
+      // 8) 偏好演化
+      register(ctx.bus.handle(
+        "legado-companion:preference-evolution",
+        async (payload) => {
+          try {
+            const { default: evolution } = await import("./tools/legado_preference_evolution.js");
+            return await evolution(payload || {}, { ...ctx, log: ctx.log });
+          } catch (err) {
+            ctx.log?.error?.("preference-evolution failed via bus", { error: err.message });
+            return { ok: false, code: "tool_error", message: err.message };
+          }
+        },
+        { capability: { title: "偏好演化追踪", description: "对比阅读偏好的变化趋势，输出演化报告", stability: "alpha" } },
+      ));
+
+      // 9) RSS 书讯摄入
+      register(ctx.bus.handle(
+        "legado-companion:rss-intake",
+        async (payload) => {
+          try {
+            const { default: rssIntake } = await import("./tools/legado_rss_intake.js");
+            return await rssIntake(payload || {}, { ...ctx, log: ctx.log });
+          } catch (err) {
+            ctx.log?.error?.("rss-intake failed via bus", { error: err.message });
+            return { ok: false, code: "tool_error", message: err.message };
+          }
+        },
+        { capability: { title: "RSS 书讯摄入", description: "从 RSS 订阅源拉取新书资讯，并入推荐池", stability: "alpha" } },
       ));
     }
 

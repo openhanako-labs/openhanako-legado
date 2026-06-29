@@ -1,12 +1,12 @@
 // tools/legado_get_book_notes.js
-// 获取笔记/书签——从书架书籍中提取。
-// 开源阅读的笔记管理较为复杂，此工具先基于书籍进度和最近阅读状态提供笔记线索。
+// 获取笔记/划线/书签——从 Legado 真实书签 API 读取。
+// 不再用阅读进度冒充笔记。
 
 import { readCredentials } from "./_lib/credentials.js";
-import { getBookshelf } from "./_lib/legado-api.js";
+import { getBookshelf, getBookNotes, getAllBookNotes } from "./_lib/legado-api.js";
 
 export default async function legado_get_book_notes(
-  { bookUrl, limit = 20 } = {},
+  { bookUrl, limit = 50 } = {},
   { dataDir } = {}
 ) {
   const { serviceUrl } = readCredentials(dataDir);
@@ -15,30 +15,28 @@ export default async function legado_get_book_notes(
   }
 
   try {
-    const books = await getBookshelf(serviceUrl, "0", 100);
-    
-    // 如果指定了 bookUrl，只返回该书的笔记
-    let filteredBooks = books;
+    // 如果指定了 bookUrl，只查单本书的笔记
     if (bookUrl) {
-      filteredBooks = books.filter(b => b.bookUrl === bookUrl);
+      const notes = await getBookNotes(serviceUrl, bookUrl);
+      return {
+        ok: true,
+        notes: notes.slice(0, limit),
+        totalCount: notes.length,
+      };
     }
 
-    // 将书籍进度和最近阅读状态作为笔记信息返回
-    const notes = filteredBooks.slice(0, limit).map(b => ({
-      bookId: b.bookUrl,
-      bookTitle: b.name,
-      bookAuthor: b.author,
-      coverUrl: b.customCoverUrl || b.coverUrl,
-      currentChapter: b.durChapterTitle || "",
-      currentChapterIndex: b.durChapterIndex ?? -1,
-      readPosition: b.durChapterPos ?? 0,
-      lastReadTime: b.durChapterTime ? new Date(b.durChapterTime).toISOString() : null,
-      totalChapters: b.totalChapterNum ?? 0,
-      intro: b.intro || "",
-      wordCount: b.wordCount || "",
-    }));
+    // 无 bookUrl：遍历书架所有书，收集笔记
+    const books = await getBookshelf(serviceUrl, "0", 100);
+    const allNotes = await getAllBookNotes(serviceUrl, books, 3);
 
-    return { ok: true, notes, totalCount: notes.length };
+    // 按时间倒序排列
+    allNotes.sort((a, b) => (b.createTime || 0) - (a.createTime || 0));
+
+    return {
+      ok: true,
+      notes: allNotes.slice(0, limit),
+      totalCount: allNotes.length,
+    };
   } catch (err) {
     return { ok: false, code: err.code, message: err.message };
   }

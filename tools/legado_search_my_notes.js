@@ -1,8 +1,9 @@
 // tools/legado_search_my_notes.js
-// 搜索我的笔记——基于书架书籍元数据搜索。
+// 搜索我的笔记/划线——基于 Legado 真实书签数据搜索。
+// 不再搜索书籍元数据，而是搜索笔记内容本身。
 
 import { readCredentials } from "./_lib/credentials.js";
-import { getBookshelf } from "./_lib/legado-api.js";
+import { getBookshelf, getBookNotes, getAllBookNotes } from "./_lib/legado-api.js";
 
 export default async function legado_search_my_notes(
   { query, bookUrl = null, limit = 20 } = {},
@@ -17,40 +18,47 @@ export default async function legado_search_my_notes(
   }
 
   try {
-    const books = await getBookshelf(serviceUrl, "0", 100);
+    const lower = query.toLowerCase();
+    let notes = [];
 
-    // 过滤
-    let filtered = books;
     if (bookUrl) {
-      filtered = books.filter(b => b.bookUrl === bookUrl);
+      // 搜索某本书的笔记
+      notes = await getBookNotes(serviceUrl, bookUrl);
+    } else {
+      // 遍历书架搜索所有笔记
+      const books = await getBookshelf(serviceUrl, "0", 100);
+      // 先快速在书名中匹配，缩小范围
+      const matchedBooks = books.filter(b =>
+        (b.name || "").toLowerCase().includes(lower) ||
+        (b.author || "").toLowerCase().includes(lower)
+      );
+      // 匹配到的书拿真实笔记，未匹配的书也查一下（笔记内容可能匹配）
+      const allNotes = await getAllBookNotes(serviceUrl, books, 3);
+      notes = allNotes;
     }
 
-    // 在书名、作者、简介中搜索关键词
-    const lower = query.toLowerCase();
-    const results = filtered
-      .filter(b => {
-        const name = (b.name || "").toLowerCase();
-        const author = (b.author || "").toLowerCase();
-        const intro = (b.intro || "").toLowerCase();
-        const kind = (b.kind || "").toLowerCase();
-        const chapterTitle = (b.durChapterTitle || "").toLowerCase();
-        return name.includes(lower) || author.includes(lower) || intro.includes(lower)
-          || kind.includes(lower) || chapterTitle.includes(lower);
+    // 在笔记内容中搜索
+    const results = notes
+      .filter(n => {
+        const content = (n.content || "").toLowerCase();
+        const chapter = (n.chapterName || "").toLowerCase();
+        const bookName = (n.bookName || "").toLowerCase();
+        return content.includes(lower) || chapter.includes(lower) || bookName.includes(lower);
       })
       .slice(0, limit)
-      .map(b => ({
-        bookUrl: b.bookUrl,
-        bookTitle: b.name,
-        bookAuthor: b.author,
+      .map(n => ({
+        noteId: `${n.bookId}_${n.chapterPos}_${n.createTime}`,
+        bookTitle: n.bookName || "",
+        chapterName: n.chapterName || "",
+        content: (n.content || "").slice(0, 500),
+        type: n.type || "bookmark",
+        color: n.color || "",
+        createTime: n.createTime || 0,
         matchIn: [
-          (b.name || "").toLowerCase().includes(lower) ? "书名" : null,
-          (b.author || "").toLowerCase().includes(lower) ? "作者" : null,
-          (b.intro || "").toLowerCase().includes(lower) ? "简介" : null,
-          (b.durChapterTitle || "").toLowerCase().includes(lower) ? "当前章节" : null,
+          (n.content || "").toLowerCase().includes(lower) ? "笔记内容" : null,
+          (n.chapterName || "").toLowerCase().includes(lower) ? "章节名" : null,
+          (n.bookName || "").toLowerCase().includes(lower) ? "书名" : null,
         ].filter(Boolean).join("、"),
-        currentChapter: b.durChapterTitle || "",
-        lastReadTime: b.durChapterTime ? new Date(b.durChapterTime).toISOString() : null,
-        intro: (b.intro || "").slice(0, 200),
       }));
 
     return { ok: true, results, total: results.length };

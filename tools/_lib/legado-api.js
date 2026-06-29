@@ -175,10 +175,68 @@ export async function getChapterContent(serviceUrl, bookUrl, index = 0) {
  * @param {string} serviceUrl
  * @param {string} bookUrl
  */
+/**
+ * 获取书籍笔记/划线/书签。
+ * Legado 端点是 getBookmarkList，返回该书所有书签。
+ * @param {string} serviceUrl
+ * @param {string} bookUrl
+ */
 export async function getBookNotes(serviceUrl, bookUrl) {
   if (!bookUrl) throw new ShapeError("bookUrl 不能为空");
-  const data = await callLegadoApi(serviceUrl, "getBookmarkList", { url: bookUrl });
-  return Array.isArray(data) ? data : (data?.bookmarks || data?.data || []);
+  try {
+    const data = await callLegadoApi(serviceUrl, "getBookmarkList", { url: bookUrl });
+    const rawList = Array.isArray(data) ? data : (data?.bookmarks || data?.data || []);
+    // 规范化书签格式
+    return rawList.map(normalizeBookmark);
+  } catch (err) {
+    // getBookmarkList 可能对某些书报错（无书签时），返回空
+    if (err.code === "connection" || err.code === "timeout") throw err;
+    return [];
+  }
+}
+
+/**
+ * 将 Legado 原始书签数据规范化为统一格式。
+ * Legado 书签字段（实测）：
+ *   chapterName / chapterPos / bookmarkContent / createTime / type(划线/笔记)
+ */
+function normalizeBookmark(b) {
+  return {
+    bookId: b.bookUrl || "",
+    bookName: b.bookName || "",
+    chapterName: b.chapterName || "",
+    chapterPos: b.chapterPos || 0,
+    content: b.bookmarkContent || b.content || b.text || "",
+    type: b.type || "bookmark", // bookmark / note / highlight
+    createTime: b.createTime || b.durChapterTime || 0,
+    color: b.color || "",
+  };
+}
+
+/**
+ * 获取所有书籍的笔记/划线（批量）。
+ * @param {string} serviceUrl
+ * @param {Array} books - 书架书籍列表（用于确定哪些书有笔记可查）
+ * @param {number} concurrency - 并发数
+ */
+export async function getAllBookNotes(serviceUrl, books, concurrency = 3) {
+  const allNotes = [];
+  const batchSize = concurrency;
+  for (let i = 0; i < books.length; i += batchSize) {
+    const batch = books.slice(i, i + batchSize);
+    const results = await Promise.allSettled(
+      batch.map(b => getBookNotes(serviceUrl, b.bookUrl).catch(() => []))
+    );
+    for (let j = 0; j < results.length; j++) {
+      const notes = results[j].status === "fulfilled" ? results[j].value : [];
+      // 夹带书信息到每条笔记
+      for (const n of notes) {
+        if (!n.bookName) n.bookName = batch[j]?.name || "";
+      }
+      allNotes.push(...notes);
+    }
+  }
+  return allNotes;
 }
 
 /**
