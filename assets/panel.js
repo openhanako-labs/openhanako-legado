@@ -43,7 +43,7 @@ document.addEventListener('DOMContentLoaded', function() {
     if (act === 'switch') { S.tab=t.dataset.tab;S.detail=null;S.filterGroup=null;S.error=null;S.randomPick=null;render();if(S.tab==='stats')loadStats(); }
     else if (act === 'group') { S.filterGroup=Number(t.dataset.gid);S.tab='shelf';S.detail=null;render(); }
     else if (act === 'back') { S.detail=null;render(); }
-    else if (act === 'detail') { var b=S.books.find(function(x){return(x.bookUrl||x.bookId||'')===t.dataset.bid});if(b)openDetail(b); }
+    else if (act === 'detail') { var b=S.books.find(function(x){return(x.bookUrl||x.bookId||'')===t.dataset.bid});if(!b)b=S.searchResults.find(function(x){return(x.bookUrl||x.bookId||'')===t.dataset.bid});if(b)openDetail(b); }
     else if (act === 'chpage') { S.chPage=Number(t.dataset.p);render(); }
     else if (act === 'readch') { readChapter(Number(t.dataset.ch)); }
     else if (act === 'rback') { S.reader=null;render(); }
