@@ -228,17 +228,35 @@ function portraitHtml() {
   if(S.portraitLoading) return '<div class="cd"><div class="ch">🧠 AI 阅读画像</div><div class="cb"><div class="em"><span class="sp"></span> AI 正在分析...</div></div></div>';
   if(p && p.ok) {
     var pt=p.portrait||{};
+    var raw=pt.raw||'';
     var html='<div class="cd"><div class="ch">🧠 AI 阅读画像</div><div class="cb"><div class="fl">';
-    if(pt.summary) html+='<div style="font-family:var(--font-book);font-size:14px;line-height:1.8;margin-bottom:12px">'+esc(pt.summary)+'</div>';
-    if(pt.traits && pt.traits.length) {
-      html+='<div style="font-weight:600;margin-bottom:6px">阅读特质</div>';
-      for(var i=0;i<pt.traits.length;i++) html+='<div style="padding:6px 0;border-bottom:1px solid var(--line-soft)">• '+esc(pt.traits[i])+'</div>';
+    // 兼容两种数据格式
+    var summary=pt.summary||pt.pref||'';
+    var traits=pt.traits||[];
+    if(pt.pace) traits.push('阅读节奏：'+pt.pace);
+    if(pt.interests) traits.push('兴趣领域：'+pt.interests);
+    var suggestions=pt.suggestions||[];
+    if(typeof pt.suggestions==='string' && pt.suggestions) suggestions=[pt.suggestions];
+    var keywords=pt.keywords||[];
+    if(summary) html+='<div style="font-family:var(--font-book);font-size:14px;line-height:1.8;margin-bottom:12px">'+esc(summary)+'</div>';
+    if(traits.length) {
+      html+='<div style="font-weight:600;margin-bottom:6px;color:var(--ochre)">📊 阅读特质</div>';
+      for(var i=0;i<traits.length;i++) html+='<div style="padding:8px 0;border-bottom:1px solid var(--line-soft);font-size:14px;line-height:1.6">• '+esc(traits[i])+'</div>';
     }
-    if(pt.suggestions && pt.suggestions.length) {
-      html+='<div style="font-weight:600;margin-top:12px;margin-bottom:6px">推荐</div>';
-      for(var i=0;i<pt.suggestions.length;i++) html+='<div style="padding:6px 0">→ '+esc(pt.suggestions[i])+'</div>';
+    if(keywords.length) {
+      html+='<div style="margin-top:10px;display:flex;gap:6px;flex-wrap:wrap">';
+      for(var i=0;i<keywords.length;i++) html+='<span style="padding:3px 10px;background:var(--line-soft);border-radius:12px;font-size:12px;color:var(--ink)">'+esc(keywords[i])+'</span>';
+      html+='</div>';
     }
-    html+='</div></div></div><div style="text-align:center;padding:0 18px 16px"><button class="bp" data-act="regen">重新生成</button></div>';
+    if(suggestions.length) {
+      html+='<div style="font-weight:600;margin-top:14px;margin-bottom:6px;color:var(--ochre)">📚 推荐方向</div>';
+      for(var i=0;i<suggestions.length;i++) html+='<div style="padding:8px 0;font-size:14px;line-height:1.6">→ '+esc(suggestions[i])+'</div>';
+    }
+    // 兜底：显示原始文本
+    if(!summary && !traits.length && !suggestions.length && raw) {
+      html+='<div style="font-family:var(--font-book);font-size:14px;line-height:1.8">'+esc(raw.slice(0,1000)).replace(/\n/g,'<br>')+'</div>';
+    }
+    html+='</div></div></div><div style="text-align:center;padding:0 18px 16px"><button class="bp" data-act="regen">重新生成</button><span style="font-size:11px;color:var(--slate);margin-left:8px">上次生成：'+(p._cachedAt||'')+'</span></div>';
     return html;
   }
   // 失败时显示具体错误信息
@@ -401,17 +419,18 @@ async function loadGroupNames(){
   try{var gnr=await api('/api/group-names');if(gnr.ok)S.groupNames=Object.assign({0:'默认',1:'追更',2:'养肥',16:'待分类'},gnr.names||{})}catch(e){}
 }
 async function loadPortrait(){
-  S.portraitLoading=true;S.portload=null;render();
-  try{var r=await api('/api/portrait?force=1');S.portrait=r;}catch(e){S.portrait={ok:false,message:e.message};}
+  // 先尝试读缓存（不传 force）
+  S.portraitLoading=true;S.portrait=null;render();
+  try{var r=await api('/api/portrait');S.portrait=r;}catch(e){S.portrait={ok:false,message:e.message};}
   S.portraitLoading=false;render();
 }
 async function checkLogin(){
   try{
     var r=await api('/api/login-status');
-    if(r.logged){S.connected=true;S.shelfLoading=true;render();
+    if(r.logged){S.connected=true;S.url=r.serviceUrl||S.url;S.shelfLoading=true;render();
   try{var sr=await api('/api/shelf');if(sr.ok){S.books=sr.books||[];S.shelfError=null;}else{S.shelfError=sr.message||'获取书架失败';}}catch(e){S.shelfError=e.message;}
   S.shelfLoading=false;render();
-    }else{S.error=r.message||r.hint||'';}
+    }else{S.error=r.message||r.hint||'';if(r.serviceUrl)S.url=r.serviceUrl;}
   }catch(e){S.error=e.message;}
   render();
 }

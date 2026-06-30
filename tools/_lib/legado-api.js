@@ -271,7 +271,7 @@ export async function searchBooks(serviceUrl, keyword, count = 20) {
   }
 
   return new Promise((resolve, reject) => {
-    const timeout = setTimeout(() => { ws.close(); reject(new Error("search timeout")); }, 15000);
+    const timeout = setTimeout(() => { try{ws.close()}catch{} reject(new ConnectionError(`搜索超时（15s）: 无法连接 ${wsUrl}`)); }, 15000);
     let ws;
     try {
       ws = new WebSocket(wsUrl);
@@ -280,7 +280,9 @@ export async function searchBooks(serviceUrl, keyword, count = 20) {
       reject(new ConnectionError(`WebSocket 创建失败: ${err.message}`));
       return;
     }
-    ws.onopen = () => { ws.send(JSON.stringify({ key: keyword })); };
+    // WebSocket 连接超时
+    const connTimer = setTimeout(() => { try{if(ws)ws.close()}catch{} reject(new ConnectionError(`搜索超时: WebSocket 连接 ${wsUrl} 无响应，请确认 Legado Web 服务已开启`)); }, 5000);
+    ws.onopen = () => { clearTimeout(connTimer); ws.send(JSON.stringify({ key: keyword })); };
     ws.onmessage = (event) => {
       clearTimeout(timeout);
       ws.close();
