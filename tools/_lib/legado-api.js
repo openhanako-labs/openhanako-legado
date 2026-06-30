@@ -297,7 +297,7 @@ export async function searchBooks(serviceUrl, keyword, count = 20) {
     };
     ws.onerror = (err) => {
       clearTimeout(timeout);
-      reject(new ConnectionError(`WebSocket 搜索失败: ${err.message || "unknown error"}`));
+      reject(new ConnectionError(`WebSocket 搜索失败: 无法连接到 ${wsUrl}（${err.message || "请确认 Legado Web 服务已开启"}）`));
     };
     ws.onclose = () => { /* ignore */ };
   });
