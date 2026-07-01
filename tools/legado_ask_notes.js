@@ -5,7 +5,7 @@
 import { readCredentials } from "./_lib/credentials.js";
 import { getBookshelf } from "./_lib/legado-api.js";
 import { chatCompletion } from "./_lib/llm.js";
-import { buildBookshelfPrompt } from "./_lib/portrait.js";
+import { buildAskPrompt } from "./_lib/portrait.js";
 
 export default async function legado_ask_notes(
   { query, bookUrl = null } = {},
@@ -55,7 +55,7 @@ export default async function legado_ask_notes(
       };
     }
 
-    const prompt = buildBookshelfPrompt(filtered, query);
+    const prompt = buildAskPrompt(filtered, query);
     const llmResult = await chatCompletion(ctx, {
       operation: "legado-companion-ask-notes",
       messages: [{ role: "user", content: prompt }],
