@@ -35,6 +35,7 @@ var S = {
   notesList:[], notesLoading:false,
   trends:null, trendsLoading:false,
   recap:null, recapLoading:false, recappedBooks:{},
+  gridMode:false,
 };
 function toast(msg, type) {
   var c = document.getElementById('toast-container');
@@ -131,7 +132,7 @@ function libraryHtml(){
   var fl=S.filterGroup!=null?S.books.filter(function(b){return(b.group??0)===S.filterGroup}):S.books;
   if(fl.length===0)return'<div class="empty-state"><span class="icon">📚</span><div class="title">'+(S.filterGroup!=null?"该分组无书籍":"暂无书籍")+'</div></div>';
   var backBtn=S.filterGroup!=null?'<button class="bo" data-act="switch" data-view="library" style="font-size:12px;margin-right:8px">← 全部</button>':'';
-  var h='<div class="section-label">'+backBtn+'<span>书架</span><span class="count">'+fl.length+' 本</span></div>';
+  var h='<div class="section-label">'+backBtn+'<span>书架</span><span class="count">'+fl.length+' 本 <span style="cursor:pointer;margin-left:8px;font-size:13px;color:var(--ink-2)" data-act="gridtoggle">'+(S.gridMode?'列表':'网格')+'</span></span></div>';
   // 分组过滤
   if(!S.filterGroup&&S.stats&&S.stats.groups&&S.stats.groups.length){
     h+='<div style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:12px;padding-bottom:8px;border-bottom:1px solid var(--line)">';
@@ -141,13 +142,28 @@ function libraryHtml(){
     }
     h+='</div>';
   }
-  for(var i=0;i<Math.min(fl.length,60);i++){
-    var b=fl[i],c=SPINE_COLORS[b.group!==undefined?b.group%SPINE_COLORS.length:i%SPINE_COLORS.length];
-    var cimg=coverImg(b.coverUrl||b.cover||'');
-    h+='<div class="book-row s" data-act="detail" data-bid="'+esc(b.bookUrl||b.bookId||"")+'">';
-    if(cimg)h+='<div style="width:36px;height:48px;border-radius:4px;flex-shrink:0;background-image:url('+cimg+');background-size:cover;background-position:center"></div>';
-    else h+='<span class="spine" style="background:'+c+'"></span>';
-    h+='<div><div class="title">'+esc(b.title||b.name||"?")+'</div>'+(b.author?'<div class="author">'+esc(b.author)+'</div>':"")+(b.durChapterTitle?'<div class="tags"><span class="hl">'+esc(b.durChapterTitle)+'</span></div>':"")+'</div></div>';
+  if(S.gridMode){
+    h+='<div style="display:grid;grid-template-columns:repeat(2,1fr);gap:8px;padding:4px 0">';
+    for(var i=0;i<Math.min(fl.length,60);i++){
+      var b=fl[i];
+      var cimg=coverImg(b.coverUrl||b.cover||'');
+      h+='<div style="padding:10px;border-radius:8px;background:var(--bg-raised);box-shadow:var(--shadow-card);cursor:pointer" data-act="detail" data-bid="'+esc(b.bookUrl||b.bookId||"")+'">';
+      if(cimg)h+='<div style="width:100%;height:100px;border-radius:4px;background-image:url('+cimg+');background-size:cover;background-position:center;margin-bottom:8px"></div>';
+      else h+='<div style="width:100%;height:100px;border-radius:4px;background:var(--line);display:flex;align-items:center;justify-content:center;font-size:28px;margin-bottom:8px">📖</div>';
+      h+='<div style="font-weight:500;font-size:13px;line-height:1.3">'+esc(b.title||b.name||"?")+'</div>';
+      if(b.author)h+='<div style="font-size:11px;color:var(--ink-3);margin-top:2px">'+esc(b.author)+'</div>';
+      h+='</div>';
+    }
+    h+='</div>';
+  } else {
+    for(var i=0;i<Math.min(fl.length,60);i++){
+      var b=fl[i],c=SPINE_COLORS[b.group!==undefined?b.group%SPINE_COLORS.length:i%SPINE_COLORS.length];
+      var cimg=coverImg(b.coverUrl||b.cover||'');
+      h+='<div class="book-row s" data-act="detail" data-bid="'+esc(b.bookUrl||b.bookId||"")+'">';
+      if(cimg)h+='<div style="width:36px;height:48px;border-radius:4px;flex-shrink:0;background-image:url('+cimg+');background-size:cover;background-position:center"></div>';
+      else h+='<span class="spine" style="background:'+c+'"></span>';
+      h+='<div><div class="title">'+esc(b.title||b.name||"?")+'</div>'+(b.author?'<div class="author">'+esc(b.author)+'</div>':"")+(b.durChapterTitle?'<div class="tags"><span class="hl">'+esc(b.durChapterTitle)+'</span></div>':"")+'</div></div>';
+    }
   }
   return h;
 }
@@ -298,6 +314,7 @@ document.addEventListener("DOMContentLoaded",function(){
     else if(act==="pick"){doPick();}
     else if(act==="searchbk"){doSearch();}
     else if(act==="searchmode"){S.searchMode=t.dataset.mode;S.searchResults=[];S.searchQ="";render();}
+    else if(act==="gridtoggle"){S.gridMode=!S.gridMode;render();}
     else if(act==="regen"){loadPortrait(true);}
     else if(act==="notebk"){loadNotes(true);}
     else if(act==="exportbk"){doExportNotes();}
@@ -340,7 +357,7 @@ function doPing(){
   (async function(){
     try{
       await api("/api/credentials?method=POST&url="+encodeURIComponent(S.url));
-      var r=await api("/api/login-status");
+      var r=await api("/api/user-info");
       if(r.logged){S.connected=true;S.books=[];S.error=null;S.shelfLoading=true;render();
         try{var sr=await api("/api/shelf");if(sr.ok){S.books=sr.books||[];S.shelfError=null;}else{S.shelfError=sr.message||"获取书架失败";}}catch(e){S.shelfError=e.message;}
         S.shelfLoading=false;render();toast("连接成功","success");
