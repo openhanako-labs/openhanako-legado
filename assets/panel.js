@@ -68,7 +68,7 @@ function render() {
   if (S.reader) { root.innerHTML = renderReader(); return; }
   if (S.detail) { root.innerHTML = renderDetail(); return; }
   var html = '<div class="page">';
-  html += '<div class="top-bar"><div class="brand' + (S.connected?' live':'') + '">\\u4f34\\u8bfb</div><div class="info" data-act="switch" data-view="profile">' + esc(S.connected?'\\u5df2\\u8fde\\u63a5':S.error||'\\u672a\\u8fde\\u63a5') + '</div></div>';
+  html += '<div class="top-bar"><div class="brand' + (S.connected?' live':'') + '">伴读</div><div class="info" data-act="switch" data-view="profile">' + esc(S.connected?'已连接':S.error||'未连接') + '</div></div>';
   html += '<div id="v-home" class="view' + (S.tab==='home'?' active':'') + '">' + homeHtml() + '</div>';
   html += '<div id="v-library" class="view' + (S.tab==='library'?' active':'') + '">' + libraryHtml() + '</div>';
   html += '<div id="v-explore" class="view' + (S.tab==='explore'?' active':'') + '">' + exploreHtml() + '</div>';
@@ -79,11 +79,11 @@ function render() {
 }
 
 function bottomNavHtml() {
-  var t = [['home','\\u9996\\u9875','<svg viewBox=\"0 0 20 20\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.5\" stroke-linecap=\"round\"><path d=\"M3 9l7-7 7 7v8a1 1 0 01-1 1H4a1 1 0 01-1-1V9z\"/><path d=\"M8 16h4\"/></svg>'],
-    ['library','\\u4e66\\u67b6','<svg viewBox=\"0 0 20 20\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.5\" stroke-linecap=\"round\"><path d=\"M4 19V6a2 2 0 012-2h8v15H6a2 2 0 01-2-2zM8 5v5\"/><path d=\"M11 5v5\"/><path d=\"M14 5v5\"/></svg>'],
-    ['explore','\\u63a2\\u7d22','<svg viewBox=\"0 0 20 20\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.5\" stroke-linecap=\"round\"><circle cx=\"9\" cy=\"9\" r=\"4\"/><path d=\"M14 14l3.5 3.5\"/></svg>'],
-    ['notes','\\u7b14\\u8bb0','<svg viewBox=\"0 0 20 20\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.5\" stroke-linecap=\"round\"><path d=\"M5 3h10a1 1 0 011 1v14a1 1 0 01-1 1H5a1 1 0 01-1-1V4a1 1 0 011-1z\"/><path d=\"M8 7h4M8 10h4M8 13h2\"/></svg>'],
-    ['profile','\\u6211\\u7684','<svg viewBox=\"0 0 20 20\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.5\" stroke-linecap=\"round\"><circle cx=\"10\" cy=\"7\" r=\"3\"/><path d=\"M4 17c0-2.2 2.7-4 6-4s6 1.8 6 4\"/></svg>']];
+  var t = [['home','首页','<svg viewBox=\"0 0 20 20\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.5\" stroke-linecap=\"round\"><path d=\"M3 9l7-7 7 7v8a1 1 0 01-1 1H4a1 1 0 01-1-1V9z\"/><path d=\"M8 16h4\"/></svg>'],
+    ['library','书架','<svg viewBox=\"0 0 20 20\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.5\" stroke-linecap=\"round\"><path d=\"M4 19V6a2 2 0 012-2h8v15H6a2 2 0 01-2-2zM8 5v5\"/><path d=\"M11 5v5\"/><path d=\"M14 5v5\"/></svg>'],
+    ['explore','探索','<svg viewBox=\"0 0 20 20\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.5\" stroke-linecap=\"round\"><circle cx=\"9\" cy=\"9\" r=\"4\"/><path d=\"M14 14l3.5 3.5\"/></svg>'],
+    ['notes','笔记','<svg viewBox=\"0 0 20 20\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.5\" stroke-linecap=\"round\"><path d=\"M5 3h10a1 1 0 011 1v14a1 1 0 01-1 1H5a1 1 0 01-1-1V4a1 1 0 011-1z\"/><path d=\"M8 7h4M8 10h4M8 13h2\"/></svg>'],
+    ['profile','我的','<svg viewBox=\"0 0 20 20\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.5\" stroke-linecap=\"round\"><circle cx=\"10\" cy=\"7\" r=\"3\"/><path d=\"M4 17c0-2.2 2.7-4 6-4s6 1.8 6 4\"/></svg>']];
   var h = '<nav class=\"bottom-nav\"><div class=\"bnav-inner\">';
   for (var i = 0; i < t.length; i++) {
     var a = S.tab === t[i][0] ? ' active' : '';
