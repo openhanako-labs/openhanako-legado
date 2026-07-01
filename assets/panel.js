@@ -129,6 +129,7 @@ function detailHtml() {
   } else if(total) html+=pages+'<div class="cd"><div class="ch">📑 章节 ('+total+')</div><div class="ch-grid">'+
     S.chapters.slice(start,end).map(function(c,i){var t=typeof c==='string'?c:(c.title||c.name||'第'+(start+i+1)+'章');return '<div class="ch-item" data-act="readch" data-ch="'+(start+i)+'">'+esc(t)+'</div>';}).join('')+
     '</div></div>';
+  else if(S.chapters.length===0 && !S.chapterError) html+='<div class="cd"><div class="ch">📑 章节</div><div class="cb"><div class="em">该书不在书架中，暂无章节信息</div></div></div>';
   if(S.notesError) {
     html+='<div class="cd"><div class="ch">📝 笔记</div><div class="cb"><div style="padding:10px 14px;background:#fef2f2;border-radius:8px;color:#b91c1c;font-size:13px;line-height:1.6">笔记加载失败：'+esc(S.notesError)+'<div style="margin-top:6px"><button class="bo" data-act="detail" data-bid="'+esc(d.bookUrl||'')+'" style="font-size:12px">重试</button></div></div></div></div>';
   } else if(S.notes.length) {
