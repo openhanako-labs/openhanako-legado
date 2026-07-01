@@ -58,7 +58,7 @@ function switchView(id) {
   if (btn) btn.classList.add('active');
   S.error = null;
   if (id === 'library') { S.detail = null; S.filterGroup = null; S.randomPick = null; }
-  if (id === 'profile') { loadStats(); loadPortrait(); }
+  if (id === 'profile') { loadStats(); }
   if (id === 'notes') loadNotes();
 }
 
@@ -195,13 +195,6 @@ function profileHtml(){
   if(S.trends){var tr=S.trends;h+='<div class="kv-row"><span class="k">本周日均</span><span class="v">'+tr.recentWeekAvg+'</span></div><div class="kv-row"><span class="k">上周日均</span><span class="v">'+tr.prevWeekAvg+'</span></div><div class="kv-row"><span class="k">趋势</span><span class="v" style="color:'+(tr.trend==="up"?"#7A9B6D":tr.trend==="down"?"#A8573A":"")+'">'+(tr.trend==="up"?"📈 上升":tr.trend==="down"?"📉 下降":"➡️ 持平")+'</span></div><div class="kv-row"><span class="k">连续阅读</span><span class="v">'+tr.currentStreak+' 天</span></div><div class="kv-row"><span class="k">活跃时段</span><span class="v">'+(tr.peakHour||"")+' 时</span></div>';}
   else if(S.trendsLoading){h+=loadingHtml("分析中……");}
   else{h+='<button class="btn" data-act="trends" style="padding:8px 18px;font-size:13px;border:1px solid var(--line-strong);border-radius:6px;background:transparent;color:var(--ink-2);cursor:pointer;font-family:var(--font-ui);width:100%">📈 查看阅读趋势</button>';}
-  h+='</div><div class="profile-block"><div class="heading">阅读画像</div>';
-  if(S.portraitLoading){h+=loadingHtml("AI分析中……");}
-  else if(S.portrait&&S.portrait.ok){var pt=S.portrait.portrait||{},raw=pt.raw||"",sm=pt.summary||pt.pref||"",tr=pt.traits||[];if(pt.pace)tr.push("阅读节奏："+pt.pace);if(pt.interests)tr.push("兴趣领域："+pt.interests);var sg=pt.suggestions||[];if(typeof pt.suggestions==="string"&&pt.suggestions)sg=[pt.suggestions];var kw=pt.keywords||[];h+='<div class="insight-card">';if(sm)h+='<div class="text">'+esc(sm)+'</div>';if(kw.length){h+='<div class="cloud">';for(var i=0;i<kw.length;i++)h+='<span>'+esc(kw[i])+'</span>';h+='</div>';}
-  for(var i=0;i<tr.length;i++)h+='<div style="padding:4px 0;font-size:13px;color:var(--ink-2);border-bottom:1px solid var(--line)">• '+esc(tr[i])+'</div>';
-  for(var i=0;i<sg.length;i++)h+='<div style="padding:4px 0;font-size:13px;color:var(--rust)">→ '+esc(sg[i])+'</div>';
-  if(!sm&&!tr.length&&!sg.length&&raw)h+='<div class="text">'+esc(raw).replace(/\n/g,"<br>")+'</div>';h+='</div><button class="bo" data-act="regen" style="font-size:12px;margin-top:4px">重新生成</button>';}
-  else{h+='<div class="insight-card"><div class="text">连接Legado后，让AI分析你的阅读偏好。</div></div><button class="bo" data-act="regen" style="font-size:12px">生成画像</button>';}
   h+='</div><div class="profile-block"><div class="heading">设置</div>';
   h+='<div class="config-item"><span class="l">服务地址</span><input id="url" placeholder="http://192.168.x.x:1122" value="'+esc(S.url||"")+'"/></div>';
   h+='<div class="config-item" style="gap:8px;flex-wrap:wrap"><button class="btn" data-act="save" style="padding:6px 16px;font-size:12px;border:none;border-radius:6px;background:var(--rust);color:#fff;cursor:pointer;font-family:var(--font-ui)">保存</button><button class="bo" data-act="ping" style="font-size:12px">测试</button><span class="action" data-act="clear" style="color:var(--ink-3)">清除</span></div></div>';
