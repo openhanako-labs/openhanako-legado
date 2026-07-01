@@ -15,6 +15,7 @@ import legadoDailyLog from "../tools/legado_daily_log.js";
 import legadoSaveBooklist from "../tools/legado_save_booklist.js";
 import legadoPreferenceEvolution from "../tools/legado_preference_evolution.js";
 import legadoRssIntake from "../tools/legado_rss_intake.js";
+import legadoExportNotes from "../tools/legado_export_notes.js";
 
 // ---- 读服务器 token ----
 
@@ -570,6 +571,28 @@ export default function registerLegadoRoutes(app, ctx) {
     let body;
     try { body = await c.req.json(); } catch { body = {}; }
     const out = await invokeTool(legadoRssIntake, body);
+    return c.json(out);
+  });
+
+  // ---- 笔记时间线 ----
+
+  app.get("/api/notes-timeline", async (c) => {
+    const bookId = c.req.query("bookId") || null;
+    const limit = Number(c.req.query("limit") || 50);
+    const out = await invokeTool(legadoExportNotes, { action: "preview", bookUrl: bookId });
+    return c.json(out);
+  });
+
+  // ---- 笔记导出 ----
+
+  app.post("/api/notes-export", async (c) => {
+    let body;
+    try { body = await c.req.json(); } catch { body = {}; }
+    const out = await invokeTool(legadoExportNotes, {
+      action: body.action || "preview",
+      bookUrl: body.bookUrl || null,
+      writeToObsidian: body.writeToObsidian || false,
+    });
     return c.json(out);
   });
 

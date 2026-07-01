@@ -52,6 +52,8 @@ document.addEventListener('DOMContentLoaded', function() {
     else if (act === 'ping') doPing(); else if (act === 'save') doSave(); else if (act === 'clear') doClear();
     else if (act === 'savegn') saveGroupNames();
     else if (act === 'askbk') doAsk();
+    else if (act === 'notebk') loadNotes(true);
+    else if (act === 'exportbk') doExportNotes();
     else if (act === 'fsize') { S.fontSize=Number(t.dataset.s);render(); }
     else if (act === 'pick') doPick();
     else if (act === 'searchbk') doSearch();
@@ -68,7 +70,7 @@ function render() {
   if (!root) return;
   if (S.reader) { root.innerHTML = '<div class="p-16">'+readerHtml(S.readerContent)+'</div>'; return; }
   if (S.detail) { root.innerHTML = detailHtml(); return; }
-  var tabs=[['shelf','📚 书架'],['pick','🎲 拾遗'],['search','🔍 搜'],['ask','💬 思问'],['stats','📊 统'],['portrait','🧠 画像'],['config','⚙ 设']];
+  var tabs=[['shelf','📚 书架'],['pick','🎲 拾遗'],['search','🔍 搜'],['ask','💬 思问'],['stats','📊 统'],['portrait','🧠 画像'],['notes','📝 笔'],['config','⚙ 设']];
   var nav='<div class="nv">';
   for(var i=0;i<tabs.length;i++) {
     nav+='<button class="nv-b'+(S.tab===tabs[i][0]?' nv-a':'')+'" data-act="switch" data-tab="'+tabs[i][0]+'">'+tabs[i][1]+'</button>';
@@ -81,6 +83,7 @@ function render() {
   else if (S.tab==='search') content=searchHtml();
   else if (S.tab==='stats') content=statsHtml();
   else if (S.tab==='portrait') content=portraitHtml();
+  else if (S.tab==='notes') content=notesHtml();
   else if (S.tab==='ask') content=askHtml();
   else if (S.tab==='config') content=configHtml();
   else content=shelfHtml();
@@ -434,4 +437,53 @@ async function checkLogin(){
     }else{S.error=r.message||r.hint||'';if(r.serviceUrl)S.url=r.serviceUrl;}
   }catch(e){S.error=e.message;}
   render();
+}
+
+// ---- 笔记 ----
+function notesHtml() {
+  if(!S.connected) return '<div class="cd"><div class="ch">📝 笔记</div><div class="cb"><div class="em">请先连接</div></div></div>';
+  if(S.notesLoading) return '<div class="cd"><div class="ch">📝 笔记</div><div class="cb"><div class="em"><span class="sp"></span> 加载笔记...</div></div></div>';
+  var html='<div class="cd"><div class="ch">📝 笔记 ('+S.notesList.length+')</div><div class="cb">';
+  if(S.notesList.length===0) {
+    html+='<div class="em">暂无笔记，试试点「刷新」</div>';
+  } else {
+    var byBook={};
+    for(var i=0;i<S.notesList.length;i++) {
+      var n=S.notesList[i];
+      var key=n.bookName||'未知';
+      if(!byBook[key]) byBook[key]=[];
+      byBook[key].push(n);
+    }
+    for(var bookName in byBook) {
+      var notes=byBook[bookName];
+      html+='<div class="fl" style="border-bottom:1px solid var(--line-soft)"><div style="font-weight:600;font-size:14px;margin-bottom:6px">📖 '+esc(bookName)+' <span style="font-weight:400;color:var(--slate);font-size:12px">'+notes.length+' 条</span></div>';
+      for(var j=0;j<Math.min(notes.length,5);j++) {
+        html+='<div style="padding:6px 0;border-bottom:1px solid var(--line-soft);font-size:13px;font-family:var(--font-book);line-height:1.6">';
+        if(notes[j].chapterName) html+='<span style="font-size:11px;color:var(--slate)">'+esc(notes[j].chapterName)+'</span><br>';
+        html+=esc((notes[j].content||'').slice(0,200))+'</div>';
+      }
+      if(notes.length>5) html+='<div style="font-size:12px;color:var(--slate);padding:4px 0">还有 '+(notes.length-5)+' 条…</div>';
+      html+='</div>';
+    }
+  }
+  html+='</div></div><div style="display:flex;gap:8px;padding:0 18px 16px;flex-wrap:wrap"><button class="bp" data-act="notebk">🔄 刷新</button><button class="bo" data-act="exportbk">📥 导出 Markdown</button></div>';
+  return html;
+}
+
+async function loadNotes(force){
+  if(!S.connected)return;
+  S.notesLoading=true;render();
+  try{var r=await api('/api/notes-timeline?limit=100');if(r.ok)S.notesList=r.notes||[];else S.notesList=[];}catch(e){S.notesList=[];}
+  S.notesLoading=false;render();
+}
+
+async function doExportNotes(){
+  if(!S.connected){toast('请先连接','error');return}
+  toast('正在导出…');
+  try{
+    var r=await api('/api/notes-export',{method:'POST',body:JSON.stringify({writeToObsidian:true})});
+    if(r.ok&&r.filePath) toast('已导出到 Obsidian: '+r.filePath,'success');
+    else if(r.ok&&r.markdown) toast('已生成 '+r.count+' 条笔记','success');
+    else toast('导出失败: '+(r.message||'未知'),'error');
+  }catch(e){toast('导出失败: '+e.message,'error');}
 }
