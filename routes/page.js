@@ -16,6 +16,9 @@ import legadoSaveBooklist from "../tools/legado_save_booklist.js";
 import legadoPreferenceEvolution from "../tools/legado_preference_evolution.js";
 import legadoRssIntake from "../tools/legado_rss_intake.js";
 import legadoExportNotes from "../tools/legado_export_notes.js";
+import legadoFulltextSearch from "../tools/legado_fulltext_search.js";
+import legadoReadingTrends from "../tools/legado_reading_trends.js";
+import legadoRecap from "../tools/legado_recap.js";
 
 // ---- 读服务器 token ----
 
@@ -593,6 +596,32 @@ export default function registerLegadoRoutes(app, ctx) {
       bookUrl: body.bookUrl || null,
       writeToObsidian: body.writeToObsidian || false,
     });
+    return c.json(out);
+  });
+
+  // ---- 跨书全文搜索 ----
+
+  app.get("/api/fulltext-search", async (c) => {
+    const q = c.req.query("q") || "";
+    if (!q) return c.json({ ok: false, code: "missing_query" }, 400);
+    const out = await invokeTool(legadoFulltextSearch, { keyword: q });
+    return c.json(out);
+  });
+
+  // ---- 阅读趋势 ----
+
+  app.get("/api/reading-trends", async (c) => {
+    const days = Number(c.req.query("days") || 30);
+    const out = await invokeTool(legadoReadingTrends, { days });
+    return c.json(out);
+  });
+
+  // ---- 前情提要 ----
+
+  app.get("/api/recap", async (c) => {
+    const bookId = c.req.query("bookId") || "";
+    if (!bookId) return c.json({ ok: false, code: "missing_bookId" }, 400);
+    const out = await invokeTool(legadoRecap, { bookUrl: bookId }, ctx);
     return c.json(out);
   });
 
