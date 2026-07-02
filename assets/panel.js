@@ -68,7 +68,7 @@ function switchView(id) {
 function render() {
   var root = document.getElementById('root');
   if (!root) return;
-  if (S.reader) { root.innerHTML = renderReader(); return; }
+  if (S.reader) { renderReader(); return; }
   if (S.detail) { root.innerHTML = renderDetail(); return; }
   var html = '<div class="page">';
   html += '<div class="top-bar"><div class="brand' + (S.connected?' live':'') + '">伴读</div><div class="info" data-act="switch" data-view="profile">' + esc(S.connected?'已连接':S.error||'未连接') + '</div></div>';
@@ -145,16 +145,14 @@ function libraryHtml(){
     h+='</div>';
   }
   if(S.gridMode){
-    h+='<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;padding:4px 0">';
-    for(var i=0;i<Math.min(fl.length,60);i++){
+    h+='<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:4px;padding:2px 0">';
+    for(var i=0;i<Math.min(fl.length,99);i++){
       var b=fl[i];
       var cimg=coverImg(b.coverUrl||b.cover||'');
-      h+='<div style="padding:10px;border-radius:8px;background:var(--bg-raised);box-shadow:var(--shadow-card);cursor:pointer" data-act="detail" data-bid="'+esc(b.bookUrl||b.bookId||"")+'">';
-      if(cimg)h+='<div style="width:100%;height:100px;border-radius:4px;background-image:url('+cimg+');background-size:cover;background-position:center;margin-bottom:8px"></div>';
-      else h+='<div style="width:100%;height:100px;border-radius:4px;background:var(--line);display:flex;align-items:center;justify-content:center;font-size:28px;margin-bottom:8px">📖</div>';
-      h+='<div style="font-weight:500;font-size:13px;line-height:1.3">'+esc(b.title||b.name||"?")+'</div>';
-      if(b.author)h+='<div style="font-size:11px;color:var(--ink-3);margin-top:2px">'+esc(b.author)+'</div>';
-      h+='</div>';
+      h+='<div style="cursor:pointer;border-radius:4px;overflow:hidden" data-act="detail" data-bid="'+esc(b.bookUrl||b.bookId||"")+'">';
+      if(cimg)h+='<div style="width:100%;padding-bottom:133%;border-radius:2px;background-image:url('+cimg+');background-size:cover;background-position:center;background-color:var(--line)"></div>';
+      else h+='<div style="width:100%;padding-bottom:133%;border-radius:2px;background:var(--line);display:flex;align-items:center;justify-content:center;font-size:24px">📖</div>';
+      h+='<div style="padding:4px 2px"><div style="font-size:12px;line-height:1.3;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+esc(b.title||b.name||"?")+'</div>'+(b.author?'<div style="font-size:10px;color:var(--ink-3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+esc(b.author)+'</div>':"")+'</div></div>';
     }
     h+='</div>';
   } else {
@@ -240,6 +238,11 @@ function onboardingHtml(){
   return'<div class="onboarding hidden" id="onboarding"><span class="icon">📖</span><h2>欢迎使用伴读</h2><div class="desc">连接你的Legado开源阅读服务，在电脑上同步书架、阅读记录和笔记。</div><div class="field"><label>服务地址</label><input id="ob-url" placeholder="http://192.168.x.x:1122" value="'+esc(S.url||"")+'"/></div><div class="btn-row"><button class="btn primary" data-act="onboard-save">连接</button><button class="btn secondary" onclick="document.getElementById(\'onboarding\').classList.add(\'hidden\')">稍后</button></div></div>';
 }
 function renderReader(){
+  var h = readerHtml();
+  var root = document.getElementById('root');
+  if (root) root.innerHTML = h;
+}
+function readerHtml(){
   var t=esc(S.reader||""),th=S.readerTheme||"day",bg=th==="day"?"#F4EFE6":th==="paper"?"#E8DCC8":"#1A1816",ink=th==="dark"?"#D6CFC4":"#2B2825";
   if(S.readerLoading)return'<div class="page" style="background:'+bg+'"><div class="loading-state"><div class="pulse"></div><div class="label">加载中……</div></div></div>';
   var h='<div class="page" id="v-reader" style="background:'+bg+';color:'+ink+'">';
@@ -410,9 +413,9 @@ async function readChapter(idx,bookUrl){S.readerBookUrl=bookUrl||S.readerBookUrl
   var i=Number(idx),ch=S.chapters[i],title=typeof ch==="string"?ch:(ch.title||ch.name||"第"+(i+1)+"章");
   var bu=bookUrl||(S.detail?S.detail.bookUrl:null);
   if(!bu){S.readerContent="加载失败: 无法获取书籍信息";S.readerLoading=false;renderReader();return;}
-  S.readerIdx=i;S.reader=title;S.readerLoading=true;S.readerContent="";renderReader();
+  S.readerIdx=i;S.reader=title;S.readerLoading=true;S.readerContent="";render();
   try{var r=await api("/api/chapter-content?bookId="+encodeURIComponent(bu)+"&index="+i);if(r.ok)S.readerContent=r.content||"";else S.readerContent="加载失败: "+(r.message||"");}catch(e){S.readerContent="加载失败: "+e.message;}
-  S.readerLoading=false;renderReader();
+  S.readerLoading=false;render();
 }
 async function loadStats(){
   if(S.statsLoaded)return;
