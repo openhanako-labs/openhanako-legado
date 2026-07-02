@@ -430,6 +430,15 @@ async function loadStats(){
 }
 async function loadGroupNames(){
   try{var gnr=await api("/api/group-names");if(gnr.ok)S.groupNames=Object.assign({0:"默认",1:"追更",2:"养肥",16:"待分类"},gnr.names||{})}catch(e){}
+  // 从书架数据提取分组统计
+  if(S.books&&S.books.length&&!S.statsLoaded){
+    var groups={};
+    for(var i=0;i<S.books.length;i++){var g=S.books[i].group??0;groups[g]=(groups[g]||0)+1}
+    S.stats=S.stats||{};S.stats.groups=Object.entries(groups).map(function(e){return{id:Number(e[0]),count:e[1]}}).sort(function(a,b){return b.count-a.count});
+    S.statsLoaded=true;
+  }
+}{
+  try{var gnr=await api("/api/group-names");if(gnr.ok)S.groupNames=Object.assign({0:"默认",1:"追更",2:"养肥",16:"待分类"},gnr.names||{})}catch(e){}
 }
 async function loadPortrait(force){
   S.portraitLoading=true;S.portrait=null;render();
