@@ -143,7 +143,7 @@ body{font-family:var(--font-ui);font-size:15px;color:var(--ink);background:var(-
 #v-reader .reader-top .reading-progress .fill{height:100%;background:var(--ink-3);border-radius:1px;transition:width .5s var(--ease)}
 #v-reader .reader-top .time{font-size:11px;color:var(--ink-3);font-variant-numeric:tabular-nums}
 #v-reader .reader-title{font-family:var(--font-book);font-size:17px;font-weight:500;text-align:center;color:var(--ink-2);margin-bottom:24px}
-#v-reader .body p{font-family:var(--font-book);font-size:17px;line-height:2;text-indent:2em;margin-bottom:0.6em}
+#v-reader .body p{font-family:var(--font-book);font-size:17px;line-height:2;text-indent:2em;margin-bottom:0.6em;max-width:600px;margin-left:auto;margin-right:auto}
 #v-reader .reader-options{display:flex;align-items:center;justify-content:center;gap:16px;margin-top:24px;padding:12px 0;border-top:1px solid var(--line)}
 #v-reader .reader-options .font-slider{display:flex;align-items:center;gap:8px}
 #v-reader .reader-options .font-slider input[type=range]{width:80px;height:2px;-webkit-appearance:none;appearance:none;background:var(--line);border-radius:1px;outline:none}

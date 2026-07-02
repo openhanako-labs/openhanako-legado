@@ -35,6 +35,7 @@ var S = {
   notesList:[], notesLoading:false,
   trends:null, trendsLoading:false,
   recap:null, recapLoading:false, recappedBooks:{},
+  readerBookUrl:null,
   gridMode:true,
 };
 function toast(msg, type) {
@@ -405,7 +406,7 @@ async function openDetail(b){
   try{var r=await api("/api/book-notes?bookId="+encodeURIComponent(S.detail.bookUrl));if(r.ok)S.notes=r.notes||[]}catch(e){S.notesError=e.message;}
   render();
 }
-async function readChapter(idx,bookUrl){
+async function readChapter(idx,bookUrl){S.readerBookUrl=bookUrl||S.readerBookUrl;
   var i=Number(idx),ch=S.chapters[i],title=typeof ch==="string"?ch:(ch.title||ch.name||"第"+(i+1)+"章");
   var bu=bookUrl||(S.detail?S.detail.bookUrl:null);
   if(!bu){S.readerContent="加载失败: 无法获取书籍信息";S.readerLoading=false;renderReader();return;}
