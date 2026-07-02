@@ -88,30 +88,52 @@ export default function registerLegadoRoutes(app, ctx) {
   app.get("/api/shelf", async (c) => {
     const creds = readCredentials(dd);
     if (!creds.serviceUrl) return c.json({ ok: true, logged: false, books: [], totalCount: 0 });
+    // 读缓存
+    const cacheFile = path.join(dd, "legado-companion", "shelf-cache.json");
+    let cached = null;
+    try { if (fs.existsSync(cacheFile)) cached = JSON.parse(fs.readFileSync(cacheFile, "utf-8")); } catch {}
+    // 异步刷新缓存的函数
+    async function refreshCache() {
+      try {
+        const rawBooks = await getBookshelf(creds.serviceUrl, "0", 200);
+        const books = rawBooks.map(b => ({
+          bookId: b.bookUrl, title: b.name || "未知", author: b.author || "",
+          cover: b.customCoverUrl || b.coverUrl || "", intro: b.intro || "",
+          wordCount: b.wordCount || "", latestChapterTitle: b.latestChapterTitle || "",
+          durChapterTitle: b.durChapterTitle || "", durChapterIndex: b.durChapterIndex ?? -1,
+          durChapterPos: b.durChapterPos ?? 0, durChapterTime: b.durChapterTime || 0,
+          totalChapterNum: b.totalChapterNum ?? 0, kind: b.kind || "",
+          origin: b.origin || "", originName: b.originName || "", group: b.group ?? 0,
+          bookUrl: b.bookUrl,
+        }));
+        fs.mkdirSync(path.dirname(cacheFile), { recursive: true });
+        fs.writeFileSync(cacheFile, JSON.stringify({ books, totalCount: books.length, cachedAt: Date.now() }, null, 2), "utf-8");
+      } catch (err) { ctx.log?.error?.("shelf cache refresh failed", err.message); }
+    }
+    if (cached && cached.books) {
+      // 后台异步刷新
+      refreshCache();
+      return c.json({ ok: true, logged: true, books: cached.books, totalCount: cached.totalCount, cached: true });
+    }
+    // 无缓存：同步等
     try {
       const rawBooks = await getBookshelf(creds.serviceUrl, "0", 200);
-      // 映射为 weread 格式
       const books = rawBooks.map(b => ({
-        bookId: b.bookUrl,
-        title: b.name || "未知",
-        author: b.author || "",
-        cover: b.customCoverUrl || b.coverUrl || "",
-        intro: b.intro || "",
-        wordCount: b.wordCount || "",
-        latestChapterTitle: b.latestChapterTitle || "",
-        durChapterTitle: b.durChapterTitle || "",
-        durChapterIndex: b.durChapterIndex ?? -1,
-        durChapterPos: b.durChapterPos ?? 0,
-        durChapterTime: b.durChapterTime || 0,
-        totalChapterNum: b.totalChapterNum ?? 0,
-        kind: b.kind || "",
-        origin: b.origin || "",
-        originName: b.originName || "",
-        group: b.group ?? 0,
+        bookId: b.bookUrl, title: b.name || "未知", author: b.author || "",
+        cover: b.customCoverUrl || b.coverUrl || "", intro: b.intro || "",
+        wordCount: b.wordCount || "", latestChapterTitle: b.latestChapterTitle || "",
+        durChapterTitle: b.durChapterTitle || "", durChapterIndex: b.durChapterIndex ?? -1,
+        durChapterPos: b.durChapterPos ?? 0, durChapterTime: b.durChapterTime || 0,
+        totalChapterNum: b.totalChapterNum ?? 0, kind: b.kind || "",
+        origin: b.origin || "", originName: b.originName || "", group: b.group ?? 0,
         bookUrl: b.bookUrl,
       }));
+      fs.mkdirSync(path.dirname(cacheFile), { recursive: true });
+      fs.writeFileSync(cacheFile, JSON.stringify({ books, totalCount: books.length, cachedAt: Date.now() }, null, 2), "utf-8");
       return c.json({ ok: true, logged: true, books, totalCount: books.length });
     } catch (err) {
+      // 有缓存但刷新失败时返回缓存
+      if (cached && cached.books) return c.json({ ok: true, logged: true, books: cached.books, totalCount: cached.totalCount });
       return c.json({ ok: false, code: err.code, message: err.message });
     }
   });
