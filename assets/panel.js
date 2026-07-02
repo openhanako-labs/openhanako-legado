@@ -299,7 +299,7 @@ document.addEventListener("DOMContentLoaded",function(){
     else if(act==="group"){S.filterGroup=Number(t.dataset.gid);switchView("library");}
     else if(act==="detail"){var b=S.books.find(function(x){return(x.bookUrl||x.bookId||"")===t.dataset.bid});if(!b)b=S.searchResults.find(function(x){return(x.bookUrl||x.bookId||"")===t.dataset.bid});if(b)openDetail(b);}
     else if(act==="close-detail"){closeDetail();}
-    else if(act==="readch"){closeDetail();readChapter(Number(t.dataset.ch));}
+    else if(act==="readch"){var ri=Number(t.dataset.ch);var bk=S.detail.bookUrl;closeDetail();readChapter(ri,bk);}
     else if(act==="rback"){S.reader=null;switchView("home");}
     else if(act==="prevch"){readChapter(S.readerIdx-1);}
     else if(act==="nextch"){readChapter(S.readerIdx+1);}
@@ -405,10 +405,12 @@ async function openDetail(b){
   try{var r=await api("/api/book-notes?bookId="+encodeURIComponent(S.detail.bookUrl));if(r.ok)S.notes=r.notes||[]}catch(e){S.notesError=e.message;}
   render();
 }
-async function readChapter(idx){
+async function readChapter(idx,bookUrl){
   var i=Number(idx),ch=S.chapters[i],title=typeof ch==="string"?ch:(ch.title||ch.name||"第"+(i+1)+"章");
+  var bu=bookUrl||(S.detail?S.detail.bookUrl:null);
+  if(!bu){S.readerContent="加载失败: 无法获取书籍信息";S.readerLoading=false;renderReader();return;}
   S.readerIdx=i;S.reader=title;S.readerLoading=true;S.readerContent="";renderReader();
-  try{var r=await api("/api/chapter-content?bookId="+encodeURIComponent(S.detail.bookUrl)+"&index="+i);if(r.ok)S.readerContent=r.content||"";else S.readerContent="加载失败: "+(r.message||"");}catch(e){S.readerContent="加载失败: "+e.message;}
+  try{var r=await api("/api/chapter-content?bookId="+encodeURIComponent(bu)+"&index="+i);if(r.ok)S.readerContent=r.content||"";else S.readerContent="加载失败: "+(r.message||"");}catch(e){S.readerContent="加载失败: "+e.message;}
   S.readerLoading=false;renderReader();
 }
 async function loadStats(){
