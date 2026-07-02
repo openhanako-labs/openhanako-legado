@@ -37,6 +37,7 @@ var S = {
   recap:null, recapLoading:false, recappedBooks:{},
   readerBookUrl:null,
   gridMode:true,
+  ftResults:null, ftLoading:false, ftQuery:'',
 };
 function toast(msg, type) {
   var c = document.getElementById('toast-container');
@@ -169,32 +170,17 @@ function libraryHtml(){
   return h;
 }
 function exploreHtml(){
-  var mode=S.searchMode||"bookstore",ph=mode==="bookstore"?"书名或作者……":"搜索正文关键词……";
-  var h='<div class="section-label">探索</div><div class="search-box"><div class="hint">'+(mode==="bookstore"?"搜索书源":"全文搜索")+'</div>';
-  h+='<div style="display:flex;gap:4px;margin-bottom:8px"><button class="pg'+(mode==="bookstore"?" pg-a":"")+'" data-act="searchmode" data-mode="bookstore" style="font-size:12px">📚 书源</button><button class="pg'+(mode==="fulltext"?" pg-a":"")+'" data-act="searchmode" data-mode="fulltext" style="font-size:12px">📄 全文</button></div>';
-  h+='<div class="row"><input id="sq" placeholder="'+ph+'" value="'+esc(S.searchQ||"")+'"/><button class="go" data-act="searchbk">搜索</button></div></div>';
+  var h='<div class="section-label">探索</div><div class="search-box"><div class="hint">搜索书源</div>';
+  h+='<div class="row"><input id="sq" placeholder="书名或作者……" value="'+esc(S.searchQ||"")+'"/><button class="go" data-act="searchbk">搜索</button></div></div>';
   if(S.searching)h+=loadingHtml("搜索中……");
   else if(S.searchError)h+='<div style="padding:12px 14px;background:var(--rust-tint);border-radius:8px;color:var(--rust);font-size:13px;line-height:1.6">搜索失败：'+esc(S.searchError)+'<div style="margin-top:6px"><button class="bo" data-act="searchbk" style="font-size:12px">重试</button></div></div>';
   else if(S.searchResults.length>0){
-    if(mode==="fulltext"){
-      for(var i=0;i<Math.min(S.searchResults.length,20);i++){
-        var r=S.searchResults[i];
-        h+='<div class="book-row" data-act="detail" data-bid="'+esc(r.bookUrl||"")+'"><span class="spine" style="background:var(--ink-3)"></span><div><div class="title">'+esc(r.bookTitle||"")+'</div><div class="author">'+esc(r.chapterTitle||"")+'</div><div class="tags" style="font-family:var(--font-book);font-size:12px;color:var(--ink-2);line-height:1.6;margin-top:4px">'+esc((r.snippet||"").slice(0,120))+'</div></div></div>';
-      }
-    } else {
-      for(var i=0;i<Math.min(S.searchResults.length,30);i++){
-        var b=S.searchResults[i];
-        h+='<div class="book-row" data-act="detail" data-bid="'+esc(b.bookUrl||b.bookId||"")+'"><span class="spine" style="background:var(--ink-3)"></span><div><div class="title">'+esc(b.title||b.name||"?")+'</div>'+(b.author?'<div class="author">'+esc(b.author)+'</div>':"")+'</div></div>';
-      }
+    for(var i=0;i<Math.min(S.searchResults.length,30);i++){
+      var b=S.searchResults[i];
+      h+='<div class="book-row" data-act="detail" data-bid="'+esc(b.bookUrl||b.bookId||"")+'"><span class="spine" style="background:var(--ink-3)"></span><div><div class="title">'+esc(b.title||b.name||"?")+'</div>'+(b.author?'<div class="author">'+esc(b.author)+'</div>':"")+'</div></div>';
     }
   } else if(S.searchQ){h+='<div class="empty-state"><span class="icon">🔍</span><div class="title">无结果</div></div>';}
-  else {
-    h+='<div class="random-suggestion" data-act="pick"><div class="hint">翻翻看，下一本读什么</div><div class="action">随机抽一本 →</div></div>';
-    if(S.randomPick){
-      var p=S.randomPick;
-      h+='<div class="book-row" data-act="detail" data-bid="'+esc(p.bookUrl||p.bookId||"")+'"><span class="spine" style="background:var(--rust)"></span><div><div class="title">'+esc(p.title||p.name||"?")+'</div>'+(p.author?'<div class="author">'+esc(p.author)+'</div>':"")+(p.durChapterTitle?'<div class="tags"><span class="hl">'+esc(p.durChapterTitle)+'</span></div>':"")+'</div></div>';
-    }
-  }
+  else{h+='<div class="random-suggestion" data-act="pick"><div class="hint">翻翻看，下一本读什么</div><div class="action">随机抽一本 →</div></div>';if(S.randomPick){var p=S.randomPick;h+='<div class="book-row" data-act="detail" data-bid="'+esc(p.bookUrl||p.bookId||"")+'"><span class="spine" style="background:var(--rust)"></span><div><div class="title">'+esc(p.title||p.name||"?")+'</div>'+(p.author?'<div class="author">'+esc(p.author)+'</div>':"")+(p.durChapterTitle?'<div class="tags"><span class="hl">'+esc(p.durChapterTitle)+'</span></div>':"")+'</div></div>';}}
   return h;
 }
 function notesHtml(){
@@ -289,6 +275,11 @@ function renderDetail(){
   h+='<button class="bo" data-act="recapbk" style="font-size:12px">📋 前情提要</button></div>';
   if(S.recap&&S.recap.ok&&S.recap.recap)h+='<div style="padding:14px;background:var(--bg-raised);border-radius:8px;margin-bottom:16px;font-family:var(--font-book);font-size:13px;line-height:1.8;color:var(--ink-2)"><div style="font-size:12px;font-weight:600;color:var(--ochre);margin-bottom:8px">📋 前情提要</div>'+esc(S.recap.recap)+'</div>';
   if(S.recapLoading)h+='<div style="text-align:center;padding:16px;color:var(--ink-3);font-size:13px"><span class="sp"></span> 生成中...</div>';
+  // 全文搜索（单书内）
+  h+='<div style="display:flex;gap:6px;margin-bottom:12px"><input id="ftq" placeholder="搜索本书正文…" style="flex:1;padding:8px 12px;border:1px solid var(--line-strong);border-radius:6px;font-size:13px;font-family:var(--font-ui);color:var(--ink);background:transparent;outline:none"/><button class="bo" data-act="ftsearch" style="font-size:12px;white-space:nowrap">搜索</button></div>';
+  if(S.ftLoading)h+='<div style="font-size:13px;color:var(--ink-3);padding:8px 0"><span class="sp"></span> 搜索中...</div>';
+  else if(S.ftResults&&S.ftResults.length){h+='<div style="margin-bottom:12px">';for(var i=0;i<Math.min(S.ftResults.length,10);i++){var r=S.ftResults[i];h+='<div style="padding:8px 0;border-bottom:1px solid var(--line);cursor:pointer" data-act="readch" data-ch="'+r.chapterIndex+'"><div style="font-size:12px;color:var(--ochre)">'+esc(r.chapterTitle||"")+'</div><div style="font-size:13px;font-family:var(--font-book);color:var(--ink-2);line-height:1.6;margin-top:2px">'+esc((r.snippet||"").slice(0,120))+'</div></div>';}h+='</div>';}
+  else if(S.ftResults&&S.ftResults.length===0&&S.ftQuery)h+='<div style="font-size:13px;color:var(--ink-3);padding:8px 0">无匹配结果</div>';
   // 章节
   if(S.chapterError){h+='<div style="padding:12px;background:var(--rust-tint);border-radius:8px;color:var(--rust);font-size:13px;margin-bottom:12px">章节加载失败：'+esc(S.chapterError)+'</div>';}
   else if(total){h+=pages+'<div class="profile-block"><div class="heading">章节 ('+total+')</div>';for(var i=start;i<end;i++){var ch=S.chapters[i],t=typeof ch==="string"?ch:(ch.title||ch.name||"第"+(i+1)+"章");h+='<div class="ch-item" data-act="readch" data-ch="'+i+'">'+esc(t)+'</div>';}h+='</div>';}
@@ -329,6 +320,7 @@ document.addEventListener("DOMContentLoaded",function(){
     else if(act==="exportbk"){doExportNotes();}
     else if(act==="trends"){loadTrends();}
     else if(act==="recapbk"){loadRecap();}
+    else if(act==="ftsearch"){doFulltextSearch();}
     else if(act==="onboard-save"){doOnboardSave();}
   });
   loadGroupNames();render();setTimeout(checkLogin,100);
@@ -437,8 +429,6 @@ async function loadGroupNames(){
     S.stats=S.stats||{};S.stats.groups=Object.entries(groups).map(function(e){return{id:Number(e[0]),count:e[1]}}).sort(function(a,b){return b.count-a.count});
     S.statsLoaded=true;
   }
-}{
-  try{var gnr=await api("/api/group-names");if(gnr.ok)S.groupNames=Object.assign({0:"默认",1:"追更",2:"养肥",16:"待分类"},gnr.names||{})}catch(e){}
 }
 async function loadPortrait(force){
   S.portraitLoading=true;S.portrait=null;render();
@@ -472,4 +462,11 @@ async function loadRecap(){
   S.recapLoading=true;S.recap=null;render();
   try{var r=await api("/api/recap?bookId="+encodeURIComponent(S.detail.bookUrl));if(r.ok)S.recap=r;else S.recap={ok:false,message:r.message};}catch(e){S.recap={ok:false,message:e.message};}
   S.recapLoading=false;render();
+}
+async function doFulltextSearch(){
+  var q=(document.getElementById("ftq")||{}).value||"";if(!q.trim())return;
+  if(!S.detail||!S.detail.bookUrl){toast("请先选择一本书","error");return}
+  S.ftQuery=q.trim();S.ftLoading=true;S.ftResults=null;render();
+  try{var r=await api("/api/fulltext-search?q="+encodeURIComponent(S.ftQuery)+"&bookUrl="+encodeURIComponent(S.detail.bookUrl));if(r.ok)S.ftResults=r.results||[];else S.ftResults=[];}catch(e){S.ftResults=[];}
+  S.ftLoading=false;render();
 }

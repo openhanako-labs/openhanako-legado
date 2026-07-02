@@ -640,7 +640,8 @@ export default function registerLegadoRoutes(app, ctx) {
   app.get("/api/fulltext-search", async (c) => {
     const q = c.req.query("q") || "";
     if (!q) return c.json({ ok: false, code: "missing_query" }, 400);
-    const out = await invokeTool(legadoFulltextSearch, { keyword: q });
+    const bookUrl = c.req.query("bookUrl") || null;
+    const out = await invokeTool(legadoFulltextSearch, { keyword: q, bookUrl });
     return c.json(out);
   });
 
