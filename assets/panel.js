@@ -60,7 +60,7 @@ function switchView(id) {
   var btn = document.querySelector('.bnav-btn[data-view="'+id+'"]');
   if (btn) btn.classList.add('active');
   S.error = null;
-  if (id === 'library' && !window._groupClick) { S.detail = null; S.filterGroup = null; S.randomPick = null; } else if (id === 'library') { window._groupClick = false; S.detail = null; S.randomPick = null; }
+  if (id === 'library' && !window._groupClick) { S.detail = null; S.filterGroup = null; S.randomPick = null; var libEl=document.getElementById('v-library');if(libEl)libEl.innerHTML=libraryHtml(); } else if (id === 'library') { window._groupClick = false; S.detail = null; S.randomPick = null; }
   if (id === 'profile') { loadStats(); }
   if (id === 'notes') loadNotes();
 }
@@ -296,7 +296,7 @@ document.addEventListener("DOMContentLoaded",function(){
     var t=e.target.closest("[data-act]");if(!t)return;
     var act=t.dataset.act;
     if(act==="switch"){switchView(t.dataset.view);}
-    else if(act==="group"){S.filterGroup=Number(t.dataset.gid);window._groupClick=true;switchView("library");}
+    else if(act==="group"){S.filterGroup=Number(t.dataset.gid);var libEl=document.getElementById('v-library');if(libEl)libEl.innerHTML=libraryHtml();var navBtn=document.querySelector('.bnav-btn[data-view="library"]');if(navBtn)navBtn.classList.add('active');}
     else if(act==="detail"){var b=S.books.find(function(x){return(x.bookUrl||x.bookId||"")===t.dataset.bid});if(!b)b=S.searchResults.find(function(x){return(x.bookUrl||x.bookId||"")===t.dataset.bid});if(b)openDetail(b);}
     else if(act==="close-detail"){closeDetail();}
     else if(act==="readch"){var ri=Number(t.dataset.ch);var bk=S.detail.bookUrl;closeDetail();readChapter(ri,bk);}
