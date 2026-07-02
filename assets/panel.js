@@ -1,4 +1,4 @@
-// panel.js — 伴读 v3
+﻿// panel.js — 伴读 v3
 const urlParams = new URLSearchParams(window.location.search);
 const TOKEN = urlParams.get('token') || '';
 const BASE = window.HANA_PLUGIN_BASE || '';
@@ -35,7 +35,7 @@ var S = {
   notesList:[], notesLoading:false,
   trends:null, trendsLoading:false,
   recap:null, recapLoading:false, recappedBooks:{},
-  gridMode:false,
+  gridMode:true,
 };
 function toast(msg, type) {
   var c = document.getElementById('toast-container');
