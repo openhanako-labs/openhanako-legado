@@ -144,7 +144,7 @@ function libraryHtml(){
     h+='</div>';
   }
   if(S.gridMode){
-    h+='<div style="display:grid;grid-template-columns:repeat(2,1fr);gap:8px;padding:4px 0">';
+    h+='<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;padding:4px 0">';
     for(var i=0;i<Math.min(fl.length,60);i++){
       var b=fl[i];
       var cimg=coverImg(b.coverUrl||b.cover||'');
@@ -238,6 +238,14 @@ function profileHtml(){
   else{h+='<div class="insight-card"><div class="text">连接Legado后，点击下方按钮生成阅读画像。</div></div><button class="bo" data-act="regen" style="font-size:12px">生成画像</button>';}
   h+='</div><div class="profile-block"><div class="heading">设置</div>';
   h+='<div class="config-item"><span class="l">服务地址</span><input id="url" placeholder="http://192.168.x.x:1122" value="'+esc(S.url||"")+'"/></div>';
+  // 分组名编辑
+  if(S.stats&&S.stats.groups&&S.stats.groups.length){
+    for(var g=0;g<Math.min(S.stats.groups.length,8);g++){
+      var grd=S.stats.groups[g];
+      h+='<div class="config-item"><span class="l" style="font-size:12px;width:60px;flex-shrink:0">'+gn(grd.id)+'</span><input class="gn-input" data-gnk="'+grd.id+'" value="'+esc(S.groupNames[String(grd.id)]||"")+'" style="flex:1;padding:6px 10px;border:1px solid var(--line-strong);border-radius:4px;font-size:13px;font-family:var(--font-ui);color:var(--ink);background:var(--bg);outline:none;text-align:right"/></div>';
+    }
+    h+='<div class="config-item"><button class="bo" data-act="savegn" style="font-size:12px">保存名称</button></div>';
+  }
   h+='<div class="config-item" style="gap:8px;flex-wrap:wrap"><button class="btn" data-act="save" style="padding:6px 16px;font-size:12px;border:none;border-radius:6px;background:var(--rust);color:#fff;cursor:pointer;font-family:var(--font-ui)">保存</button><button class="bo" data-act="ping" style="font-size:12px">测试</button><span class="action" data-act="clear" style="color:var(--ink-3)">清除</span></div></div>';
   return h;
 }
