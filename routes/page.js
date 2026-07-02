@@ -301,8 +301,22 @@ export default function registerLegadoRoutes(app, ctx) {
   app.get("/api/reading-stats", async (c) => {
     const creds = readCredentials(dd);
     if (!creds.serviceUrl) return c.json({ ok: true, stats: {} });
+    // 先读缓存
+    const cacheFile = path.join(dd, "legado-companion", "shelf-cache.json");
+    let cached = null;
+    try { if (fs.existsSync(cacheFile)) cached = JSON.parse(fs.readFileSync(cacheFile, "utf-8")); } catch {}
+    let books = null;
     try {
-      const books = await getBookshelf(creds.serviceUrl, "0", 200);
+      books = await getBookshelf(creds.serviceUrl, "0", 200);
+    } catch (err) {
+      // Legado 不可用时用缓存
+      if (cached && cached.books) books = cached.books.map(b => ({
+        durChapterIndex: b.durChapterIndex, durChapterTitle: b.durChapterTitle,
+        wordCount: b.wordCount, kind: b.kind, origin: b.origin, group: b.group,
+      }));
+      else return c.json({ ok: false, code: err.code, message: err.message });
+    }
+    try {
       const totalBooks = books.length;
       const readBooks = books.filter(b => (b.durChapterIndex ?? -1) >= 0).length;
       const inProgress = books.filter(b => b.durChapterTitle && b.durChapterTitle.length > 0).length;
