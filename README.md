@@ -1,5 +1,9 @@
 # 阅读·伴脑 (Legado Companion)
 
+
+![License: AGPL v3](https://img.shields.io/badge/License-AGPL%20v3-blue.svg)
+
+
 让 Hanako 联结你的开源阅读（Legado），伴你阅读。
 
 ## 功能
