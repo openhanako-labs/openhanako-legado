@@ -26,12 +26,15 @@
 
 ## 安装
 
-### 通过社区插件（TODO）
-等待上架社区插件市场。
+### 通过 OH-Plugins marketplace
+在 Hanako 设置 → 插件市场搜索 "legado-companion" 或 "阅读·伴脑" 一键安装。
+
+上架配置文件位于 [`OH-Plugins/plugins/legado-companion.yaml`](https://github.com/liliMozi/OH-Plugins/blob/main/plugins/legado-companion.yaml)。
+需要上架或更新时，向 [liliMozi/OH-Plugins](https://github.com/liliMozi/OH-Plugins) 提 PR，按插件市场的 `plugins/*.yaml` 规范填写。
 
 ### 手动安装
 ```bash
-git clone https://github.com/你的用户名/legado-companion.git
+git clone https://github.com/openhanako-labs/legado-companion.git
 # 放入 Hanako 插件目录后重启
 ```
 
